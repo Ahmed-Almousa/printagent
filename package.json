@@ -1,0 +1,15 @@
+{
+  "name": "print-ad-erp",
+  "version": "1.0.0",
+  "description": "ERP-Lite for Printing Press & Advertising Agency",
+  "scripts": {
+    "server": "cd server && node index.js",
+    "client": "cd client && npx vite --host",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "setup": "cd server && npm install && cd ../client && npm install"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2",
+    "localtunnel": "^2.0.2"
+  }
+}
