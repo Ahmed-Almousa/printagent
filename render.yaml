@@ -1,0 +1,7 @@
+services:
+- type: web
+  name: erp-system
+  runtime: docker
+  autoDeployTrigger: commit
+  plan: free
+  region: ohio
