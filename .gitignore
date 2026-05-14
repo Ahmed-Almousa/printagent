@@ -1,0 +1,12 @@
+node_modules
+server/node_modules
+client/node_modules
+server/databases
+server/uploads
+client/dist
+.DS_Store
+*.log
+.env
+ngrok.zip
+tunnel-url.txt
+tunnel-url-history.txt
