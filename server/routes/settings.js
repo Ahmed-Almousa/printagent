@@ -1,17 +1,17 @@
 import { Router } from 'express';
 import { getMasterDb, getCompanyDb } from '../config/database.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, companyAccess } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/:companySlug/company', authenticate, async (req, res) => {
+router.get('/:companySlug/company', authenticate, companyAccess, async (req, res) => {
   const masterDb = getMasterDb();
   const company = await masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.companySlug);
   if (!company) return res.status(404).json({ error: 'Company not found' });
   res.json(company);
 });
 
-router.put('/:companySlug/company', authenticate, async (req, res) => {
+router.put('/:companySlug/company', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const masterDb = getMasterDb();
   const { name, phone, address, owner_name, currency, currency_rate, country, tax_number } = req.body;
@@ -38,11 +38,11 @@ const CURRENCIES = [
   { code: 'OMR', nameAr: 'ريال عماني', nameEn: 'Omani Rial', symbol: 'ر.ع' },
 ];
 
-router.get('/:companySlug/currencies', authenticate, (req, res) => {
+router.get('/:companySlug/currencies', authenticate, companyAccess, (req, res) => {
   res.json(CURRENCIES);
 });
 
-router.put('/:companySlug/currency-rate', authenticate, async (req, res) => {
+router.put('/:companySlug/currency-rate', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const masterDb = getMasterDb();
   const { rate } = req.body;
@@ -51,13 +51,13 @@ router.put('/:companySlug/currency-rate', authenticate, async (req, res) => {
   res.json({ rate });
 });
 
-router.get('/:companySlug/request-types', authenticate, async (req, res) => {
+router.get('/:companySlug/request-types', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const types = await db.prepare('SELECT * FROM request_types ORDER BY name ASC').all();
   res.json(types);
 });
 
-router.post('/:companySlug/request-types', authenticate, async (req, res) => {
+router.post('/:companySlug/request-types', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   const { name } = req.body;
@@ -68,7 +68,7 @@ router.post('/:companySlug/request-types', authenticate, async (req, res) => {
   res.json(type);
 });
 
-router.put('/:companySlug/request-types/:id', authenticate, async (req, res) => {
+router.put('/:companySlug/request-types/:id', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   const { name } = req.body;
@@ -78,7 +78,7 @@ router.put('/:companySlug/request-types/:id', authenticate, async (req, res) => 
   res.json(type);
 });
 
-router.delete('/:companySlug/request-types/:id', authenticate, async (req, res) => {
+router.delete('/:companySlug/request-types/:id', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   await db.prepare('DELETE FROM request_types WHERE id = ?').run(req.params.id);

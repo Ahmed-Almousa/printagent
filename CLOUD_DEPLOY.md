@@ -2,45 +2,47 @@
 
 ## المتطلبات
 - حساب GitHub (مجاني)
-- إنترنت سريع على أي كمبيوتر آخر
+- المشروع مرفوع بالفعل على `github.com/Ahmed-Almousa/printagent`
 
 ---
 
-## الطريقة 1: Render.com (الأسهل)
+## الطريقة 1: Render.com (موصى بها - مع PostgreSQL)
 
-1. ارفع المجلد `D:\printerapp` إلى GitHub
-2. افتح https://render.com
-3. سجل بحساب Google أو GitHub
-4. اضغط **"New +"** → **"Web Service"**
-5. اختر المستودع من GitHub
-6. املأ:
-   - **Name**: `erp-system`
-   - **Runtime**: `Node`
-   - **Build Command**: `cd client && npm install && npm run build && cd ../server && npm install`
-   - **Start Command**: `cd server && node index.js`
-7. تحت **Advanced** → أضف:
-   - **Disk**: `erp_data` (1GB) ← هذا يخلي SQLite يحفظ البيانات
-8. اضغط **"Create Web Service"**
+يستخدم `render.yaml` (Blueprint) لنشر الخدمة تلقائياً مع PostgreSQL:
 
-⚠️ بعد 15 دقيقة من عدم الاستخدام، التطبيق ينام. يستيقظ عند أول زيارة (يأخذ 30 ثانية).
+1. افتح https://dashboard.render.com
+2. سجل بحساب GitHub
+3. اضغط **"New +"** → **"Blueprint"**
+4. اختر المستودع **`Ahmed-Almousa/printagent`**
+5. Render سيقرأ `render.yaml` وينشئ تلقائياً:
+   - **Web Service** (`erp-system`) مع Docker
+   - **PostgreSQL Database** (`erp-db`) ← البيانات محفوظة بشكل دائم
+6. اضغط **"Apply"**
+7. انتظر 5-10 دقائق حتى يكتمل البناء
 
 **الرابط:** `https://erp-system.onrender.com`
 
+### أو يدوياً (بدون Blueprint):
+1. **PostgreSQL**: New + PostgreSQL → name: `erp-db` → Free plan → Create
+2. **Web Service**: New + Web Service → اختر المستودع
+   - **Runtime**: `Docker`
+   - **Name**: `erp-system`
+   - أضف Environment Variable: `DATABASE_URL` ← انسخها من PostgreSQL dashboard
+3. Create Web Service
+
+⚠️ بعد 15 دقيقة من عدم الاستخدام، الخدمة تنام. تستيقظ عند أول زيارة (تأخذ 30 ثانية). لكن **قاعدة البيانات PostgreSQL لا تنام** — البيانات محفوظة بشكل دائم.
+
 ---
 
-## الطريقة 2: Fly.io (أفضل لل SQLite)
+## الطريقة 2: Fly.io (بديل)
 
 تحتاج تثبيت Fly CLI على كمبيوتر آخر:
 
 ```bash
-# على كمبيوتر عنده إنترنت سريع:
 iwr https://fly.io/install.ps1 -UseBasicParsing | iex
-
-fly auth login   # يفتح المتصفح
-cd printerapp    # المجلد بعد نسخه
-fly launch       # ينشئ التطبيق
-fly volumes create erp_data --size 1 --region ams
-fly volumes create erp_uploads --size 1 --region ams
+fly auth login
+cd printerapp
+fly launch
 fly deploy
 ```
 
@@ -48,7 +50,7 @@ fly deploy
 
 ---
 
-## الطريقة 3: localtunnel (فوري - مجاني)
+## الطريقة 3: localtunnel (فوري - مجاني - مؤقت)
 
 بدون حساب ولا رفع:
 
@@ -57,7 +59,7 @@ D:\printerapp> tunnel.bat
 ```
 
 سيظهر رابط مثل: `https://xxx.loca.lt`
-أرسله للموظفين. الرابط يتغير كل تشغيل.
+أرسله للموظفين. الرابط يتغير كل تشغيل والبيانات غير دائمة.
 
 ---
 
@@ -65,6 +67,7 @@ D:\printerapp> tunnel.bat
 
 | الملف | الوظيفة |
 |-------|---------|
-| `Dockerfile` | لبناء التطبيق في حاوية (يستخدمه Render و Fly) |
+| `Dockerfile` | بناء التطبيق في حاوية Docker |
+| `render.yaml` | إعدادات Render التلقائية (Blueprint) |
 | `fly.toml` | إعدادات Fly.io |
-| `.dockerignore` | استثناء الملفات غير الضرورية |
+| `.dockerignore` | استثناء الملفات غير الضرورية من الحاوية |

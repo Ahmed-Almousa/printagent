@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { getMasterDb, getCompanyDb } from '../config/database.js';
-import { authenticate, requirePermission } from '../middleware/auth.js';
+import { authenticate, requirePermission, companyAccess } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 
 const router = Router();
 
-router.get('/:companySlug', authenticate, async (req, res) => {
+router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { all } = req.query;
   const employees = all
@@ -14,7 +14,7 @@ router.get('/:companySlug', authenticate, async (req, res) => {
   res.json(employees);
 });
 
-router.post('/:companySlug', authenticate, requirePermission('employees.create'), async (req, res) => {
+router.post('/:companySlug', authenticate, companyAccess, requirePermission('employees.create'), async (req, res) => {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
   const { full_name, email, phone, position, base_salary, username, password, role, assigned_stages, user_id } = req.body;
@@ -57,7 +57,7 @@ router.post('/:companySlug', authenticate, requirePermission('employees.create')
   res.json(emp);
 });
 
-router.put('/:companySlug/:id', authenticate, requirePermission('employees.edit'), async (req, res) => {
+router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('employees.edit'), async (req, res) => {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
   const emp = await db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params.id);
@@ -122,7 +122,7 @@ router.put('/:companySlug/:id', authenticate, requirePermission('employees.edit'
   res.json(updated);
 });
 
-router.delete('/:companySlug/:id', authenticate, requirePermission('employees.delete'), async (req, res) => {
+router.delete('/:companySlug/:id', authenticate, companyAccess, requirePermission('employees.delete'), async (req, res) => {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
   const emp = await db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params.id);
@@ -137,7 +137,7 @@ router.delete('/:companySlug/:id', authenticate, requirePermission('employees.de
   res.json({ success: true });
 });
 
-router.get('/:companySlug/performance', authenticate, async (req, res) => {
+router.get('/:companySlug/performance', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const employees = await db.prepare('SELECT id, full_name, position FROM employees WHERE is_active = 1').all();
   const performance = [];

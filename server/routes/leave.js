@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { getCompanyDb } from '../config/database.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, companyAccess } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/:companySlug', authenticate, async (req, res) => {
+router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { status, user_id } = req.query;
   let sql = 'SELECT l.*, u.full_name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id';
@@ -18,7 +18,7 @@ router.get('/:companySlug', authenticate, async (req, res) => {
   res.json(leaves);
 });
 
-router.post('/:companySlug', authenticate, async (req, res) => {
+router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { type, start_date, end_date, reason } = req.body;
   if (!reason) return res.status(400).json({ error: 'Reason is required' });
@@ -31,7 +31,7 @@ router.post('/:companySlug', authenticate, async (req, res) => {
   res.json(leave);
 });
 
-router.put('/:companySlug/:id/review', authenticate, async (req, res) => {
+router.put('/:companySlug/:id/review', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   const { status } = req.body;

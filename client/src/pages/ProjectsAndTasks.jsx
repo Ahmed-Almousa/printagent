@@ -41,7 +41,7 @@ const ADVERTISING_STAGES = [
 export default function ProjectsAndTasks() {
   const navigate = useNavigate();
   const { activeCompany, lang } = useCompany();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
   const t = (ar, en) => lang === 'ar' ? ar : en;
   const allStages = activeCompany === 'printing' ? PRINTING_STAGES : ADVERTISING_STAGES;
   const isPrinting = activeCompany === 'printing';
@@ -177,9 +177,11 @@ export default function ProjectsAndTasks() {
       <div className="card">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800">{t('المشاريع', 'Projects')}</h2>
-          <button onClick={() => { setEditing(null); setProjForm({ ...projForm, request_date: new Date().toISOString().split('T')[0] }); setShowProjModal(true); }} className="btn-primary text-sm py-1.5">
-            <Plus size="16" /> {t('مشروع جديد', 'New Project')}
-          </button>
+          {hasPermission('projects.create') && (
+            <button onClick={() => { setEditing(null); setProjForm({ ...projForm, request_date: new Date().toISOString().split('T')[0] }); setShowProjModal(true); }} className="btn-primary text-sm py-1.5">
+              <Plus size="16" /> {t('مشروع جديد', 'New Project')}
+            </button>
+          )}
         </div>
         <div className="relative mb-4">
           <Search size="16" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -194,9 +196,15 @@ export default function ProjectsAndTasks() {
                 <div className="flex items-start justify-between mb-2">
                   <FolderKanban size="16" className="text-primary-600 mt-0.5" />
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleSendToTasks(p.id)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title={t('إرسال للمهام', 'Send to tasks')}><Send size="13" /></button>
-                    <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-gray-100 text-gray-400"><Edit3 size="13" /></button>
-                    <button onClick={() => handleDeleteProj(p.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 size="13" /></button>
+                    {hasPermission('projects.edit') && (
+                      <button onClick={() => handleSendToTasks(p.id)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title={t('إرسال للمهام', 'Send to tasks')}><Send size="13" /></button>
+                    )}
+                    {hasPermission('projects.edit') && (
+                      <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-gray-100 text-gray-400"><Edit3 size="13" /></button>
+                    )}
+                    {hasPermission('projects.delete') && (
+                      <button onClick={() => handleDeleteProj(p.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 size="13" /></button>
+                    )}
                   </div>
                 </div>
                 <h3 className="font-semibold text-gray-800 text-sm mb-1">{p.title}</h3>
@@ -232,9 +240,11 @@ export default function ProjectsAndTasks() {
               <option key={p.id} value={p.id}>{p.title}</option>
             ))}
           </select>
-          <button onClick={() => { setTaskForm({ ...taskForm, project_id: selectedProject }); setShowTaskModal(true); }} className="btn-primary text-sm py-1.5">
-            <Plus size="16" /> {t('مهمة', 'Task')}
-          </button>
+          {hasPermission('tasks.create') && (
+            <button onClick={() => { setTaskForm({ ...taskForm, project_id: selectedProject }); setShowTaskModal(true); }} className="btn-primary text-sm py-1.5">
+              <Plus size="16" /> {t('مهمة', 'Task')}
+            </button>
+          )}
         </div>
       </div>
 

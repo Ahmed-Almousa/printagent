@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { getCompanyDb } from '../config/database.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, companyAccess } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/:companySlug', authenticate, async (req, res) => {
+router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   let sql = 'SELECT p.*, u.full_name as user_name FROM payroll p LEFT JOIN users u ON p.user_id = u.id';
   const conditions = [];
@@ -18,7 +18,7 @@ router.get('/:companySlug', authenticate, async (req, res) => {
   res.json(payrolls);
 });
 
-router.post('/:companySlug/calculate', authenticate, async (req, res) => {
+router.post('/:companySlug/calculate', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   const now = new Date();
@@ -52,7 +52,7 @@ router.post('/:companySlug/calculate', authenticate, async (req, res) => {
   res.json(results);
 });
 
-router.put('/:companySlug/:id/pay', authenticate, async (req, res) => {
+router.put('/:companySlug/:id/pay', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   await db.prepare("UPDATE payroll SET status = 'paid', paid_at = NOW() WHERE id = ?").run(req.params.id);

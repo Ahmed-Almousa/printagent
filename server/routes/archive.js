@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { getCompanyDb } from '../config/database.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, companyAccess } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/:companySlug', authenticate, async (req, res) => {
+router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const projects = await db.prepare(`
     SELECT p.*, rt.name as request_type_name

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useCompany } from '../contexts/CompanyContext';
 import { Printer, Megaphone, LogIn } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -9,13 +10,15 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  const { switchCompany } = useCompany();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await login(username, password);
+      const res = await login(username, password);
+      if (res.company?.slug) switchCompany(res.company.slug);
       toast.success('مرحباً بك!');
       navigate('/');
     } catch (err) {

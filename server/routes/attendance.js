@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { getCompanyDb } from '../config/database.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, companyAccess } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/:companySlug', authenticate, async (req, res) => {
+router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { date, user_id } = req.query;
   let sql = 'SELECT a.*, u.full_name as user_name FROM attendance a LEFT JOIN users u ON a.user_id = u.id';
@@ -18,7 +18,7 @@ router.get('/:companySlug', authenticate, async (req, res) => {
   res.json(records);
 });
 
-router.post('/:companySlug/clock-in', authenticate, async (req, res) => {
+router.post('/:companySlug/clock-in', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const today = new Date().toISOString().split('T')[0];
   const existing = await db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(req.user.id, today);
@@ -32,7 +32,7 @@ router.post('/:companySlug/clock-in', authenticate, async (req, res) => {
   res.json(record);
 });
 
-router.post('/:companySlug/clock-out', authenticate, async (req, res) => {
+router.post('/:companySlug/clock-out', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const today = new Date().toISOString().split('T')[0];
   const record = await db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ?').get(req.user.id, today);
@@ -44,7 +44,7 @@ router.post('/:companySlug/clock-out', authenticate, async (req, res) => {
   res.json(updated);
 });
 
-router.get('/:companySlug/today', authenticate, async (req, res) => {
+router.get('/:companySlug/today', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const today = new Date().toISOString().split('T')[0];
   const todayAtt = await db.prepare("SELECT a.*, u.full_name as user_name FROM attendance a LEFT JOIN users u ON a.user_id = u.id WHERE a.date = ?").all(today);

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getCompanyDb } from '../config/database.js';
-import { authenticate } from '../middleware/auth.js';
+import { authenticate, companyAccess } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -19,7 +19,7 @@ const PRINTING_STAGES = ['draft', 'design_review', 'pending_approval', 'producti
 const ADVERTISING_STAGES = ['brief', 'concept_design', 'client_feedback', 'launch', 'reporting', 'delivered', 'cancelled', 'archived'];
 const APPROVAL_GATE_STAGE = 'production';
 
-router.get('/:companySlug', authenticate, async (req, res) => {
+router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { project_id, stage } = req.query;
   let sql = 'SELECT t.*, u.full_name as assignee_name FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id';
@@ -33,7 +33,7 @@ router.get('/:companySlug', authenticate, async (req, res) => {
   res.json(tasks);
 });
 
-router.post('/:companySlug', authenticate, async (req, res) => {
+router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { project_id, title, description, stage, assignee_id, priority, due_date } = req.body;
   const id = 'task_' + Date.now();
@@ -43,7 +43,7 @@ router.post('/:companySlug', authenticate, async (req, res) => {
   res.json(task);
 });
 
-router.put('/:companySlug/:id', authenticate, async (req, res) => {
+router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const task = await db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Task not found' });
@@ -96,7 +96,7 @@ router.put('/:companySlug/:id', authenticate, async (req, res) => {
   res.json(updated);
 });
 
-router.get('/:companySlug/:id', authenticate, async (req, res) => {
+router.get('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const task = await db.prepare('SELECT t.*, u.full_name as assignee_name FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id WHERE t.id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Task not found' });
@@ -105,7 +105,7 @@ router.get('/:companySlug/:id', authenticate, async (req, res) => {
   res.json({ ...task, comments, attachments });
 });
 
-router.post('/:companySlug/:id/comment', authenticate, async (req, res) => {
+router.post('/:companySlug/:id/comment', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { message } = req.body;
   const id = 'cmt_' + Date.now();
@@ -114,7 +114,7 @@ router.post('/:companySlug/:id/comment', authenticate, async (req, res) => {
   res.json(comment);
 });
 
-router.post('/:companySlug/:id/upload', authenticate, upload.array('files'), async (req, res) => {
+router.post('/:companySlug/:id/upload', authenticate, companyAccess, upload.array('files'), async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const attachments = [];
   for (const file of req.files) {

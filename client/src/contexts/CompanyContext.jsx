@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 const CompanyContext = createContext(null);
 
 export function CompanyProvider({ children }) {
-  const [activeCompany, setActiveCompany] = useState('printing');
+  const [activeCompany, setActiveCompany] = useState(() => localStorage.getItem('activeCompany') || 'printing');
   const [dir, setDir] = useState('rtl');
   const [lang, setLang] = useState('ar');
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
@@ -19,6 +19,7 @@ export function CompanyProvider({ children }) {
 
   const switchCompany = (slug) => {
     setActiveCompany(slug);
+    localStorage.setItem('activeCompany', slug);
   };
 
   const switchLang = useCallback((l) => {
