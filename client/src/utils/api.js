@@ -21,6 +21,9 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       window.location.href = '/login';
     }
+    if (!err.response) {
+      console.error('Network error - server may be unavailable');
+    }
     return Promise.reject(err);
   }
 );

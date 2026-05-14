@@ -6,7 +6,7 @@ import http from 'http';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { masterDb, getCompanyDb, closeAll } from './config/database.js';
+import { initDatabase, getMasterDb, getCompanyDb, initCompanyDb, closeAll } from './config/database.js';
 import { authenticate } from './middleware/auth.js';
 
 import authRoutes from './routes/auth.js';
@@ -28,7 +28,6 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
 
-
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
@@ -39,34 +38,43 @@ app.use('/uploads', express.static(uploadsDir));
 
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 
-app.use('/api/auth', authRoutes);
-app.use('/api/projects', projectRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/employees', employeeRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/leave', leaveRoutes);
-app.use('/api/advances', advanceRoutes);
-app.use('/api/payroll', payrollRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/settings', settingsRoutes);
-app.use('/api/archive', archiveRoutes);
-app.use('/api/permissions', permissionsRoutes);
-app.use('/api/finances', financesRoutes);
+async function bootstrap() {
+  console.log('Initializing database...');
+  await initDatabase();
+  await initCompanyDb('printing');
+  await initCompanyDb('advertising');
+  console.log('Database ready.');
 
-app.get('/api/users/:companySlug', authenticate, (req, res) => {
-  const company = masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.companySlug);
-  if (!company) return res.status(404).json({ error: 'Company not found' });
-  if (req.user.role !== 'super_admin' && req.user.company_id !== company.id) {
-    return res.status(403).json({ error: 'No access' });
-  }
-  const users = masterDb.prepare('SELECT id, username, full_name, email, role FROM users WHERE company_id = ? OR role = ?').all(company.id, 'super_admin');
-  res.json(users);
-});
+  app.use('/api/auth', authRoutes);
+  app.use('/api/projects', projectRoutes);
+  app.use('/api/tasks', taskRoutes);
+  app.use('/api/employees', employeeRoutes);
+  app.use('/api/attendance', attendanceRoutes);
+  app.use('/api/leave', leaveRoutes);
+  app.use('/api/advances', advanceRoutes);
+  app.use('/api/payroll', payrollRoutes);
+  app.use('/api/notifications', notificationRoutes);
+  app.use('/api/settings', settingsRoutes);
+  app.use('/api/archive', archiveRoutes);
+  app.use('/api/permissions', permissionsRoutes);
+  app.use('/api/finances', financesRoutes);
 
-app.use(express.static(clientDist));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(clientDist, 'index.html'));
-});
+  app.get('/api/users/:companySlug', authenticate, async (req, res) => {
+    const masterDb = getMasterDb();
+    const company = await masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.companySlug);
+    if (!company) return res.status(404).json({ error: 'Company not found' });
+    if (req.user.role !== 'super_admin' && req.user.company_id !== company.id) {
+      return res.status(403).json({ error: 'No access' });
+    }
+    const users = await masterDb.prepare('SELECT id, username, full_name, email, role FROM users WHERE company_id = ? OR role = ?').all(company.id, 'super_admin');
+    res.json(users);
+  });
+
+  app.use(express.static(clientDist));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 io.on('connection', (socket) => {
   socket.on('join-task', (taskId) => {
@@ -97,7 +105,7 @@ function startServer(port) {
 }
 
 const PORT = parseInt(process.env.PORT) || 5000;
-startServer(PORT);
+bootstrap().then(() => startServer(PORT)).catch(err => { console.error('Startup failed:', err); process.exit(1); });
 
-process.on('SIGINT', () => { closeAll(); process.exit(); });
-process.on('SIGTERM', () => { closeAll(); process.exit(); });
+process.on('SIGINT', async () => { await closeAll(); process.exit(); });
+process.on('SIGTERM', async () => { await closeAll(); process.exit(); });

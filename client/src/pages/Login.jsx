@@ -19,7 +19,8 @@ export default function Login() {
       toast.success('مرحباً بك!');
       navigate('/');
     } catch (err) {
-      toast.error(err.response?.data?.error || 'خطأ في تسجيل الدخول');
+      const msg = err.response?.data?.error || (err.message === 'Network Error' ? 'الخادم قيد الإقلاع... حاول مرة أخرى بعد قليل' : 'خطأ في تسجيل الدخول');
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

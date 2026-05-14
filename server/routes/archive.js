@@ -4,9 +4,9 @@ import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/:companySlug', authenticate, (req, res) => {
+router.get('/:companySlug', authenticate, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
-  const projects = db.prepare(`
+  const projects = await db.prepare(`
     SELECT p.*, rt.name as request_type_name
     FROM projects p
     LEFT JOIN request_types rt ON p.request_type_id = rt.id
@@ -14,15 +14,17 @@ router.get('/:companySlug', authenticate, (req, res) => {
     ORDER BY p.created_at DESC
   `).all();
 
-  const result = projects.map(proj => {
-    const tasks = db.prepare('SELECT t.*, u.full_name as assignee_name FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id WHERE t.project_id = ? ORDER BY t.created_at DESC').all(proj.id);
-    const tasksWithDetails = tasks.map(task => {
-      const comments = db.prepare('SELECT c.*, u.full_name as user_name FROM task_comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.task_id = ? ORDER BY c.created_at ASC').all(task.id);
-      const attachments = db.prepare('SELECT * FROM task_attachments WHERE task_id = ?').all(task.id);
-      return { ...task, comments, attachments };
-    });
-    return { ...proj, tasks: tasksWithDetails };
-  });
+  const result = [];
+  for (const proj of projects) {
+    const tasks = await db.prepare('SELECT t.*, u.full_name as assignee_name FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id WHERE t.project_id = ? ORDER BY t.created_at DESC').all(proj.id);
+    const tasksWithDetails = [];
+    for (const task of tasks) {
+      const comments = await db.prepare('SELECT c.*, u.full_name as user_name FROM task_comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.task_id = ? ORDER BY c.created_at ASC').all(task.id);
+      const attachments = await db.prepare('SELECT * FROM task_attachments WHERE task_id = ?').all(task.id);
+      tasksWithDetails.push({ ...task, comments, attachments });
+    }
+    result.push({ ...proj, tasks: tasksWithDetails });
+  }
 
   res.json(result);
 });

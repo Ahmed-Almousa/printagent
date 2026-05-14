@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { masterDb, getCompanyDb } from '../config/database.js';
+import { getMasterDb, getCompanyDb } from '../config/database.js';
 import { authenticate, companyAccess } from '../middleware/auth.js';
 
 const router = Router();
@@ -58,17 +58,18 @@ router.get('/tree', authenticate, (req, res) => {
   res.json(PERMISSIONS_TREE);
 });
 
-router.get('/:companySlug/users', authenticate, companyAccess, (req, res) => {
+router.get('/:companySlug/users', authenticate, companyAccess, async (req, res) => {
+  const masterDb = getMasterDb();
   const { companySlug } = req.params;
-  const company = masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(companySlug);
+  const company = await masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(companySlug);
   if (!company) return res.status(404).json({ error: 'Company not found' });
 
-  const users = masterDb.prepare(
+  const users = await masterDb.prepare(
     'SELECT id, username, full_name, email, role, permissions, is_active FROM users WHERE company_id = ? OR role = ? ORDER BY role, full_name'
   ).all(company.id, 'super_admin');
 
   const db = getCompanyDb(companySlug);
-  const employees = db.prepare('SELECT user_id, full_name as emp_name, position FROM employees').all();
+  const employees = await db.prepare('SELECT user_id, full_name as emp_name, position FROM employees').all();
   const empMap = {};
   employees.forEach(e => { empMap[e.user_id] = e; });
 
@@ -81,21 +82,22 @@ router.get('/:companySlug/users', authenticate, companyAccess, (req, res) => {
   res.json(result);
 });
 
-router.put('/:companySlug/users/:userId', authenticate, companyAccess, (req, res) => {
+router.put('/:companySlug/users/:userId', authenticate, companyAccess, async (req, res) => {
   if (req.user.role !== 'super_admin' && req.user.role !== 'manager') {
     return res.status(403).json({ error: 'Only managers can assign permissions' });
   }
+  const masterDb = getMasterDb();
   const { userId } = req.params;
   const { permissions } = req.body;
 
-  const targetUser = masterDb.prepare('SELECT id, role FROM users WHERE id = ?').get(userId);
+  const targetUser = await masterDb.prepare('SELECT id, role FROM users WHERE id = ?').get(userId);
   if (!targetUser) return res.status(404).json({ error: 'User not found' });
   if (targetUser.role === 'super_admin') {
     return res.status(403).json({ error: 'Cannot modify super admin permissions' });
   }
 
   const permStr = Array.isArray(permissions) ? permissions.join(',') : '';
-  masterDb.prepare('UPDATE users SET permissions = ? WHERE id = ?').run(permStr, userId);
+  await masterDb.prepare('UPDATE users SET permissions = ? WHERE id = ?').run(permStr, userId);
   res.json({ success: true, permissions: permStr });
 });
 

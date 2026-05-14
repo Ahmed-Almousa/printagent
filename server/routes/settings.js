@@ -1,25 +1,27 @@
 import { Router } from 'express';
-import { masterDb, getCompanyDb } from '../config/database.js';
+import { getMasterDb, getCompanyDb } from '../config/database.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-router.get('/:companySlug/company', authenticate, (req, res) => {
-  const company = masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.companySlug);
+router.get('/:companySlug/company', authenticate, async (req, res) => {
+  const masterDb = getMasterDb();
+  const company = await masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.companySlug);
   if (!company) return res.status(404).json({ error: 'Company not found' });
   res.json(company);
 });
 
-router.put('/:companySlug/company', authenticate, (req, res) => {
+router.put('/:companySlug/company', authenticate, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
+  const masterDb = getMasterDb();
   const { name, phone, address, owner_name, currency, currency_rate, country, tax_number } = req.body;
-  masterDb.prepare(`UPDATE companies SET
+  await masterDb.prepare(`UPDATE companies SET
     name=COALESCE(?,name), phone=COALESCE(?,phone), address=COALESCE(?,address),
     owner_name=COALESCE(?,owner_name), currency=COALESCE(?,currency),
     currency_rate=COALESCE(?,currency_rate), country=COALESCE(?,country),
     tax_number=COALESCE(?,tax_number) WHERE slug=?`)
     .run(name, phone, address, owner_name, currency, currency_rate, country, tax_number, req.params.companySlug);
-  const company = masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.companySlug);
+  const company = await masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.companySlug);
   res.json(company);
 });
 
@@ -40,45 +42,46 @@ router.get('/:companySlug/currencies', authenticate, (req, res) => {
   res.json(CURRENCIES);
 });
 
-router.put('/:companySlug/currency-rate', authenticate, (req, res) => {
+router.put('/:companySlug/currency-rate', authenticate, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
+  const masterDb = getMasterDb();
   const { rate } = req.body;
   if (!rate || rate <= 0) return res.status(400).json({ error: 'Invalid rate' });
-  masterDb.prepare('UPDATE companies SET currency_rate = ? WHERE slug = ?').run(rate, req.params.companySlug);
+  await masterDb.prepare('UPDATE companies SET currency_rate = ? WHERE slug = ?').run(rate, req.params.companySlug);
   res.json({ rate });
 });
 
-router.get('/:companySlug/request-types', authenticate, (req, res) => {
+router.get('/:companySlug/request-types', authenticate, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
-  const types = db.prepare('SELECT * FROM request_types ORDER BY name ASC').all();
+  const types = await db.prepare('SELECT * FROM request_types ORDER BY name ASC').all();
   res.json(types);
 });
 
-router.post('/:companySlug/request-types', authenticate, (req, res) => {
+router.post('/:companySlug/request-types', authenticate, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
   const id = 'rt_' + Date.now();
-  db.prepare('INSERT INTO request_types (id, name) VALUES (?,?)').run(id, name);
-  const type = db.prepare('SELECT * FROM request_types WHERE id = ?').get(id);
+  await db.prepare('INSERT INTO request_types (id, name) VALUES (?,?)').run(id, name);
+  const type = await db.prepare('SELECT * FROM request_types WHERE id = ?').get(id);
   res.json(type);
 });
 
-router.put('/:companySlug/request-types/:id', authenticate, (req, res) => {
+router.put('/:companySlug/request-types/:id', authenticate, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
-  db.prepare('UPDATE request_types SET name = ? WHERE id = ?').run(name, req.params.id);
-  const type = db.prepare('SELECT * FROM request_types WHERE id = ?').get(req.params.id);
+  await db.prepare('UPDATE request_types SET name = ? WHERE id = ?').run(name, req.params.id);
+  const type = await db.prepare('SELECT * FROM request_types WHERE id = ?').get(req.params.id);
   res.json(type);
 });
 
-router.delete('/:companySlug/request-types/:id', authenticate, (req, res) => {
+router.delete('/:companySlug/request-types/:id', authenticate, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
-  db.prepare('DELETE FROM request_types WHERE id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM request_types WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 

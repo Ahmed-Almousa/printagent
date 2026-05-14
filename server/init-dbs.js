@@ -1,8 +1,8 @@
-import { initCompanyDb } from './config/database.js';
+import { initDatabase, initCompanyDb, closeAll } from './config/database.js';
 
-console.log('Initializing company databases...');
-const db1 = initCompanyDb('printing');
-const db2 = initCompanyDb('advertising');
-db1.close();
-db2.close();
-console.log('Done! Company databases created.');
+console.log('Initializing databases...');
+await initDatabase();
+await initCompanyDb('printing');
+await initCompanyDb('advertising');
+await closeAll();
+console.log('Done! Databases created.');
