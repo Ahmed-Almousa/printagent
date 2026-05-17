@@ -10,7 +10,21 @@ if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
 
 function getDbPath(name) { return path.join(DB_DIR, `${name}.db`); }
 
-const isPostgres = !!process.env.DATABASE_URL;
+let _pgPool = null;
+
+async function getPgPool() {
+  if (!_pgPool) {
+    const { default: pg } = await import('pg');
+    _pgPool = new pg.Pool({
+      connectionString: process.env.DATABASE_URL,
+      max: 3,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
+      ssl: { rejectUnauthorized: false },
+    });
+  }
+  return _pgPool;
+}
 
 const PERMISSIONS_TREE = [
   { key: 'dashboard', name_ar: 'لوحة التحكم', name_en: 'Dashboard', module: 'dashboard', permissions: ['view'] },
@@ -179,8 +193,7 @@ let _isPg = false;
 async function initMasterDb() {
   const db = _isPg
     ? await (async () => {
-        const { default: pg } = await import('pg');
-        const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+        const pool = await getPgPool();
         const d = new PgDatabase(pool);
 
         await d.exec(`
@@ -314,8 +327,7 @@ async function initCompanyDb(slug) {
 
   const db = _isPg
     ? await (async () => {
-        const { default: pg } = await import('pg');
-        const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+        const pool = await getPgPool();
         const d = new PgDatabase(pool);
 
         await d.exec(`
@@ -574,9 +586,10 @@ export function getCompanyDb(slug) {
   return _companyDbs[slug];
 }
 
-export { initCompanyDb, getDbPath, isPostgres };
+export { initCompanyDb, getDbPath };
 
 export async function closeAll() {
   if (_masterDb) await _masterDb.close();
   for (const db of Object.values(_companyDbs)) await db.close();
+  if (_pgPool) await _pgPool.end();
 }
