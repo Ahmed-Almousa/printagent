@@ -166,14 +166,18 @@ class PgDatabase {
 class SqliteStatement {
   constructor(stmt) { this._stmt = stmt; }
 
-  try(method, params) {
-    try { return Promise.resolve(this._stmt[method](...params)); }
-    catch (e) { return Promise.reject(e); }
+  all(...p) {
+    try { return this._stmt.all(...p); }
+    catch (e) { throw e; }
   }
-
-  all(...p) { return this.try('all', p); }
-  get(...p) { return this.try('get', p); }
-  run(...p) { return this.try('run', p); }
+  get(...p) {
+    try { return this._stmt.get(...p); }
+    catch (e) { throw e; }
+  }
+  run(...p) {
+    try { return this._stmt.run(...p); }
+    catch (e) { throw e; }
+  }
 }
 
 class SqliteDatabase {
@@ -445,7 +449,7 @@ async function initCompanyDb(slug) {
 
         return d;
       })()
-    : (() => {
+    : await (async () => {
         const db = new Database(getDbPath(slug));
         db.pragma('journal_mode = WAL');
         db.pragma('foreign_keys = ON');
@@ -549,7 +553,7 @@ async function initCompanyDb(slug) {
         if (usersCount.c === 0) {
           const company = _masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(slug);
           if (company) {
-            const companyUsers = _masterDb.prepare('SELECT id, username, full_name, email, role, is_active FROM users WHERE company_id = ? OR role = ?').all(company.id, 'super_admin');
+            const companyUsers = _masterDb.prepare('SELECT id, username, full_name, email, role, is_active FROM users WHERE company_id = ? OR role = ?').all(company.id, 'super_admin') || [];
             for (const u of companyUsers)
               db.prepare('INSERT OR IGNORE INTO users (id, username, full_name, email, role, is_active) VALUES (?,?,?,?,?,?)').run(u.id, u.username, u.full_name, u.email, u.role, u.is_active);
           }

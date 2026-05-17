@@ -39,6 +39,8 @@ app.use('/uploads', express.static(uploadsDir));
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 
 async function bootstrap() {
+  console.log('DATABASE_URL present:', !!process.env.DATABASE_URL);
+  console.log('Using database engine:', process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite');
   console.log('Initializing database...');
   await initDatabase();
   await initCompanyDb('printing');
