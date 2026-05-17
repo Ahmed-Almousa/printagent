@@ -27,7 +27,7 @@ export async function authenticate(req, res, next) {
     if (!dbUser || !dbUser.is_active) {
       return res.status(401).json({ error: 'Account disabled or removed' });
     }
-    if (dbUser.token_version !== decoded.token_version) {
+    if ((dbUser.token_version || 0) !== (decoded.token_version || 0)) {
       return res.status(401).json({ error: 'Session expired. Please login again.' });
     }
     req.user = decoded;

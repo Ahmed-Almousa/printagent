@@ -20,10 +20,6 @@ router.post('/login', async (req, res) => {
     return res.status(403).json({ error: 'No email linked to account. Contact manager.' });
   }
 
-  const newVersion = (user.token_version || 0) + 1;
-  await masterDb.prepare('UPDATE users SET token_version = ? WHERE id = ?').run(newVersion, user.id);
-  user.token_version = newVersion;
-
   let companyInfo = null;
   if (user.company_id) {
     companyInfo = await masterDb.prepare('SELECT * FROM companies WHERE id = ?').get(user.company_id);

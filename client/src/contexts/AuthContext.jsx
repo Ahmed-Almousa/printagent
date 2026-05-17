@@ -16,8 +16,10 @@ export function AuthProvider({ children }) {
           setUser(data.user);
           setCompany(data.company);
         })
-        .catch(() => {
-          localStorage.removeItem('token');
+        .catch((err) => {
+          if (err.response?.status === 401) {
+            localStorage.removeItem('token');
+          }
         })
         .finally(() => setLoading(false));
     } else {
