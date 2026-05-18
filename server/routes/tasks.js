@@ -22,7 +22,11 @@ const APPROVAL_GATE_STAGE = 'production';
 router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { project_id, stage } = req.query;
-  let sql = 'SELECT t.*, u.full_name as assignee_name FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id WHERE t.company_slug = ?';
+  let sql = `SELECT t.*, u.full_name as assignee_name,
+    p.title as project_title, p.order_value as project_order_value,
+    p.down_payment as project_down_payment, p.client_name as project_client_name
+    FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id
+    LEFT JOIN projects p ON t.project_id = p.id WHERE t.company_slug = ?`;
   const params = [req.params.companySlug];
   if (project_id) { sql += ' AND t.project_id = ?'; params.push(project_id); }
   if (stage) { sql += ' AND t.stage = ?'; params.push(stage); }

@@ -137,8 +137,34 @@ export default function ProjectsAndTasks() {
         return;
       }
       await api.put(`/tasks/${activeCompany}/${task.id}`, { stage: newStage });
+      if (newStage === 'cancelled') {
+        const remaining = tasks.filter(t => t.project_id === task.project_id && t.id !== task.id && t.stage !== 'cancelled' && t.stage !== 'archived');
+        if (remaining.length === 0) {
+          await api.put(`/projects/${activeCompany}/${task.project_id}`, { stage: 'cancelled' });
+        }
+      }
       loadAll();
     } catch (err) { toast.error(err.response?.data?.error || t('حدث خطأ', 'Error')); }
+  };
+
+  const handlePay = async (projectId) => {
+    try {
+      await api.put(`/projects/pay/${activeCompany}/${projectId}`);
+      toast.success(t('تم الدفع', 'Payment completed'));
+      loadAll();
+    } catch (err) { toast.error(t('حدث خطأ', 'Error')); }
+  };
+
+  const isFullyPaid = (task) => {
+    const val = Number(task.project_order_value) || 0;
+    const paid = Number(task.project_down_payment) || 0;
+    return val > 0 && paid >= val;
+  };
+
+  const remainingAmount = (task) => {
+    const val = Number(task.project_order_value) || 0;
+    const paid = Number(task.project_down_payment) || 0;
+    return Math.max(0, val - paid);
   };
 
   const openEdit = (project) => {
@@ -279,22 +305,50 @@ export default function ProjectsAndTasks() {
                     onClick={() => navigate(`/tasks/${activeCompany}/${task.id}`)}>
                     <div className="flex items-start justify-between mb-2">
                       <span className={`badge text-[10px] ${priorityColor(task.priority)}`}>{task.priority}</span>
+                      {task.project_client_name && <span className="text-[10px] text-gray-400 truncate max-w-[120px]">{task.project_client_name}</span>}
                     </div>
                     <h4 className="text-sm font-medium text-gray-800 mb-2">{task.title}</h4>
                     <div className="flex items-center justify-between text-xs text-gray-400">
                       <span>{task.assignee_name && <><User size="11" className="inline" /> {task.assignee_name}</>}</span>
                       <span>{task.due_date || '-'}</span>
                     </div>
+
+                    {/* Payment info for ready_pickup */}
+                    {stage.key === 'ready_pickup' && Number(task.project_order_value) > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-100 space-y-1.5">
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-gray-500">{t('التكلفة', 'Cost')}:</span>
+                          <span className="font-medium">{Number(task.project_order_value).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-gray-500">{t('المدفوع', 'Paid')}:</span>
+                          <span className="font-medium text-green-600">{Number(task.project_down_payment).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-gray-500">{t('المتبقي', 'Remaining')}:</span>
+                          <span className={`font-medium ${remainingAmount(task) > 0 ? 'text-red-600' : 'text-green-600'}`}>{remainingAmount(task).toLocaleString()}</span>
+                        </div>
+                        {remainingAmount(task) > 0 && (
+                          <button onClick={(e) => { e.stopPropagation(); handlePay(task.project_id); }} className="w-full py-1 text-[10px] font-medium bg-green-100 hover:bg-green-200 text-green-700 rounded flex items-center justify-center gap-1">
+                            <DollarSign size="10" /> {t('سدد كامل المبلغ', 'Pay Full Amount')}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex gap-1 mt-2 pt-1 border-t border-gray-100">
                       {(() => {
                         const nextIdx = stages.indexOf(stage) + 1;
                         if (stage.key === 'cancelled' || stage.key === 'archived') return null;
+                        const nextStage = stages[nextIdx];
                         return (
                           <>
-                            {stage.key === 'delivered' ? (
+                            {stage.key === 'ready_pickup' && !isFullyPaid(task) && Number(task.project_order_value) > 0 ? (
+                              <span className="flex-1 py-1 text-[10px] bg-gray-100 rounded text-gray-400 text-center">{t('يجب الدفع أولا', 'Pay first')}</span>
+                            ) : stage.key === 'delivered' ? (
                               <button onClick={(e) => { e.stopPropagation(); moveTask(task, 'archived'); }} className="flex-1 py-1 text-[10px] bg-orange-100 hover:bg-orange-200 rounded text-orange-600"><Archive size="10" className="inline" /> {t('أرشفة', 'Archive')}</button>
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); moveTask(task, stages[nextIdx].key); }} className="flex-1 py-1 text-[10px] bg-gray-100 hover:bg-gray-200 rounded text-gray-500">{t('نقل', 'Move')} →</button>
+                              <button onClick={(e) => { e.stopPropagation(); moveTask(task, nextStage.key); }} className="flex-1 py-1 text-[10px] bg-gray-100 hover:bg-gray-200 rounded text-gray-500">{t(nextStage.labelAr, nextStage.labelEn)} →</button>
                             )}
                             {stage.key !== 'delivered' && (
                               <button onClick={(e) => { e.stopPropagation(); moveTask(task, 'cancelled'); }} className="py-1 px-2 text-[10px] bg-red-50 hover:bg-red-100 rounded text-red-500">✕</button>

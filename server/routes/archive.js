@@ -10,7 +10,12 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
     SELECT p.*, rt.name as request_type_name
     FROM projects p
     LEFT JOIN request_types rt ON p.request_type_id = rt.id
-    WHERE p.company_slug = ? AND (p.stage IN ('delivered','cancelled','archived') OR p.is_archived = 1 OR p.status = 'rejected')
+    WHERE p.company_slug = ? AND (
+      p.stage IN ('delivered','cancelled','archived') OR
+      p.is_archived = 1 OR
+      p.status = 'rejected' OR
+      EXISTS (SELECT 1 FROM tasks WHERE project_id = p.id AND company_slug = p.company_slug AND stage IN ('cancelled','archived'))
+    )
     ORDER BY p.created_at DESC
   `).all(req.params.companySlug);
 

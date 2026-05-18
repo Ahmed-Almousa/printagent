@@ -62,6 +62,15 @@ router.put('/send-to-tasks/:companySlug/:id', authenticate, companyAccess, async
   res.json(project);
 });
 
+router.put('/pay/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  const db = getCompanyDb(req.params.companySlug);
+  const project = await db.prepare('SELECT * FROM projects WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  await db.prepare('UPDATE projects SET down_payment = order_value WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
+  const updated = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ? AND p.company_slug = ?').get(req.params.id, req.params.companySlug);
+  res.json(updated);
+});
+
 router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { title, description, status, client_name, order_value, down_payment, request_date, request_type_id, execution_method, is_archived, archive_reason, stage } = req.body;
