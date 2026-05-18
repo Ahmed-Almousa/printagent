@@ -4,13 +4,20 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { DollarSign, TrendingUp, TrendingDown, Wallet, Building2, Plus, Trash2 } from 'lucide-react';
 
+const COMPANY_TABS = [
+  { slug: 'printing', labelAr: 'المطبعة', labelEn: 'Printing', color: 'border-blue-500 text-blue-700 bg-blue-50' },
+  { slug: 'advertising', labelAr: 'الوكالة', labelEn: 'Agency', color: 'border-green-500 text-green-700 bg-green-50' },
+  { slug: 'combined', labelAr: 'إجمالي', labelEn: 'Combined', color: 'border-purple-500 text-purple-700 bg-purple-50' },
+];
+
 export default function Finances() {
   const { activeCompany, lang } = useCompany();
   const { user } = useAuth();
   const t = (ar, en) => lang === 'ar' ? ar : en;
+  const isSuperAdmin = user?.role === 'super_admin';
+  const [companyTab, setCompanyTab] = useState(isSuperAdmin ? 'combined' : activeCompany);
   const [summary, setSummary] = useState(null);
   const [tab, setTab] = useState('overview');
-  const isPrinting = activeCompany === 'printing';
 
   const hasPerm = (perm) => {
     if (!user || !user.permissions) return false;
@@ -22,12 +29,31 @@ export default function Finances() {
   const canInvoices = hasPerm('finances.invoices_view') || hasPerm('finances.invoices_create') || hasPerm('finances.invoices_delete');
   const canReports = hasPerm('finances.reports_view') || hasPerm('payroll.view_all');
 
-  useEffect(() => {
+  const loadSummary = async (slug) => {
     const year = new Date().getFullYear();
-    api.get(`/finances/${activeCompany}/summary?year=${year}`).then(({ data }) => setSummary(data)).catch(() => {});
+    const { data } = await api.get(`/finances/${slug}/summary?year=${year}`);
+    return data;
+  };
+
+  useEffect(() => {
+    if (companyTab === 'combined' && isSuperAdmin) {
+      Promise.all([loadSummary('printing'), loadSummary('advertising')]).then(([p, a]) => {
+        setSummary({
+          totalRevenue: (p?.totalRevenue || 0) + (a?.totalRevenue || 0),
+          totalExpenses: (p?.totalExpenses || 0) + (a?.totalExpenses || 0),
+          payrollTotal: (p?.payrollTotal || 0) + (a?.payrollTotal || 0),
+          projectRevenue: (p?.projectRevenue || 0) + (a?.projectRevenue || 0),
+          netBalance: (p?.netBalance || 0) + (a?.netBalance || 0),
+        });
+      }).catch(() => setSummary(null));
+    } else if (companyTab) {
+      loadSummary(companyTab).then(setSummary).catch(() => setSummary(null));
+    }
     const firstTab = canPayroll ? 'payroll' : canInvoices ? 'invoices' : canReports ? 'reports' : 'payroll';
     setTab(prev => prev === 'overview' ? firstTab : prev);
-  }, [activeCompany]);
+  }, [companyTab]);
+
+  const visibleTabs = isSuperAdmin ? COMPANY_TABS : COMPANY_TABS.filter(c => c.slug === activeCompany);
 
   return (
     <div className="space-y-6">
@@ -38,10 +64,24 @@ export default function Finances() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">{t('إدارة الإيرادات والمصاريف', 'Manage income & expenses')}</p>
         </div>
-        <div className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${isPrinting ? 'bg-blue-600' : 'bg-green-600'}`}>
-          <Building2 size="16" className="inline ml-1" />
-          {isPrinting ? t('المطبعة', 'Printing Press') : t('الوكالة الإعلانية', 'Advertising Agency')}
-        </div>
+      </div>
+
+      {/* Company Tabs */}
+      <div className="flex gap-2">
+        {visibleTabs.map(ct => (
+          <button
+            key={ct.slug}
+            onClick={() => setCompanyTab(ct.slug)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
+              companyTab === ct.slug
+                ? ct.color + ' border-current'
+                : 'border-gray-200 text-gray-500 hover:border-gray-300'
+            }`}
+          >
+            <Building2 size="16" className="inline ml-1" />
+            {t(ct.labelAr, ct.labelEn)}
+          </button>
+        ))}
       </div>
 
       {/* Summary Cards */}
@@ -80,7 +120,7 @@ export default function Finances() {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Feature Tabs */}
       <div className="flex gap-1 border-b border-gray-200">
         {[
           canPayroll && { key: 'payroll', labelAr: 'الرواتب', labelEn: 'Payroll' },
@@ -101,37 +141,53 @@ export default function Finances() {
         ))}
       </div>
 
-      {/* Tab Content */}
-      {tab === 'payroll' && <PayrollTab companySlug={activeCompany} lang={lang} t={t} />}
-      {tab === 'invoices' && <InvoicesTab companySlug={activeCompany} lang={lang} t={t} />}
-      {tab === 'reports' && <ReportsTab companySlug={activeCompany} lang={lang} t={t} />}
+      {/* Tab Content - combined uses slugs, single uses companyTab */}
+      {tab === 'payroll' && <PayrollTab companySlug={companyTab === 'combined' ? null : companyTab} lang={lang} t={t} isCombined={companyTab === 'combined'} />}
+      {tab === 'invoices' && <InvoicesTab companySlug={companyTab === 'combined' ? null : companyTab} lang={lang} t={t} isCombined={companyTab === 'combined'} />}
+      {tab === 'reports' && <ReportsTab companySlug={companyTab === 'combined' ? null : companyTab} lang={lang} t={t} isCombined={companyTab === 'combined'} />}
     </div>
   );
 }
 
-/* ───── PAYROLL TAB ───── */
-function PayrollTab({ companySlug, lang, t }) {
+function PayrollTab({ companySlug, lang, t, isCombined }) {
   const [employeesData, setEmployeesData] = useState([]);
 
-  const loadPayroll = () => {
-    api.get(`/payroll/${companySlug}`).then(({ data }) => setEmployeesData(data)).catch(() => {});
+  const loadPayroll = (slug) => {
+    api.get(`/payroll/${slug}`).then(({ data }) => setEmployeesData(data)).catch(() => {});
   };
 
-  useEffect(() => { loadPayroll(); }, [companySlug]);
+  useEffect(() => {
+    if (isCombined) {
+      Promise.all([
+        api.get('/payroll/printing').then(r => r.data.map(d => ({ ...d, _company: 'printing' }))),
+        api.get('/payroll/advertising').then(r => r.data.map(d => ({ ...d, _company: 'advertising' }))),
+      ]).then(([p, a]) => setEmployeesData([...p, ...a])).catch(() => {});
+    } else {
+      loadPayroll(companySlug);
+    }
+  }, [companySlug, isCombined]);
 
-  const handlePay = async (id) => {
-    try {
-      await api.put(`/payroll/${companySlug}/${id}/pay`);
-      loadPayroll();
-    } catch (err) { alert(t('فشل', 'Failed')); }
+  const handlePay = async (id, slug) => {
+    try { await api.put(`/payroll/${slug || companySlug}/${id}/pay`); isCombined ? setEmployeesData(prev => prev.filter(r => r.id !== id)) : loadPayroll(companySlug); }
+    catch (err) { alert(t('فشل', 'Failed')); }
   };
 
   const handleCalculate = async () => {
     const month = new Date().getMonth() + 1;
     const year = new Date().getFullYear();
     try {
-      await api.post(`/payroll/${companySlug}/calculate`, { month, year });
-      loadPayroll();
+      if (isCombined) {
+        await api.post('/payroll/printing/calculate', { month, year });
+        await api.post('/payroll/advertising/calculate', { month, year });
+        const [p, a] = await Promise.all([
+          api.get('/payroll/printing').then(r => r.data.map(d => ({ ...d, _company: 'printing' }))),
+          api.get('/payroll/advertising').then(r => r.data.map(d => ({ ...d, _company: 'advertising' }))),
+        ]);
+        setEmployeesData([...p, ...a]);
+      } else {
+        await api.post(`/payroll/${companySlug}/calculate`, { month, year });
+        loadPayroll(companySlug);
+      }
     } catch (err) { alert(t('فشل', 'Failed')); }
   };
 
@@ -145,6 +201,7 @@ function PayrollTab({ companySlug, lang, t }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200">
+              {isCombined && <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الشركة', 'Company')}</th>}
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الموظف', 'Employee')}</th>
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الشهر', 'Month')}</th>
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الراتب الأساسي', 'Base Salary')}</th>
@@ -157,6 +214,13 @@ function PayrollTab({ companySlug, lang, t }) {
           <tbody>
             {employeesData.map((row) => (
               <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50">
+                {isCombined && (
+                  <td className="py-2 px-2">
+                    <span className={`px-2 py-0.5 rounded text-xs ${row._company === 'printing' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                      {row._company === 'printing' ? t('مطبعة', 'Print') : t('وكالة', 'Agency')}
+                    </span>
+                  </td>
+                )}
                 <td className="py-2 px-2 font-medium">{row.user_name || row.user_id}</td>
                 <td className="py-2 px-2">{row.month}/{row.year}</td>
                 <td className="py-2 px-2">{row.base_salary?.toLocaleString()}</td>
@@ -167,7 +231,7 @@ function PayrollTab({ companySlug, lang, t }) {
                   {row.status === 'paid' ? (
                     <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs">{t('تم التقبيض', 'Paid')}</span>
                   ) : (
-                    <button onClick={() => handlePay(row.id)} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200">
+                    <button onClick={() => handlePay(row.id, row._company)} className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200">
                       {t('تقبيض', 'Pay')}
                     </button>
                   )}
@@ -175,7 +239,7 @@ function PayrollTab({ companySlug, lang, t }) {
               </tr>
             ))}
             {employeesData.length === 0 && (
-              <tr><td colSpan="7" className="text-center py-8 text-gray-400">{t('لا توجد بيانات رواتب', 'No payroll data')}</td></tr>
+              <tr><td colSpan={isCombined ? 8 : 7} className="text-center py-8 text-gray-400">{t('لا توجد بيانات رواتب', 'No payroll data')}</td></tr>
             )}
           </tbody>
         </table>
@@ -184,33 +248,42 @@ function PayrollTab({ companySlug, lang, t }) {
   );
 }
 
-/* ───── INVOICES TAB ───── */
-function InvoicesTab({ companySlug, lang, t }) {
+function InvoicesTab({ companySlug, lang, t, isCombined }) {
   const [invoices, setInvoices] = useState([]);
   const [filterType, setFilterType] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ type: 'sale', invoice_number: '', vendor_client_name: '', amount: '', description: '', invoice_date: new Date().toISOString().split('T')[0] });
 
-  const loadInvoices = () => {
+  const loadInvoices = (slug) => {
     const params = filterType ? `?type=${filterType}` : '';
-    api.get(`/finances/${companySlug}/invoices${params}`).then(({ data }) => setInvoices(data)).catch(() => {});
+    api.get(`/finances/${slug}/invoices${params}`).then(({ data }) => setInvoices(data)).catch(() => {});
   };
 
-  useEffect(() => { loadInvoices(); }, [companySlug, filterType]);
+  useEffect(() => {
+    if (isCombined) {
+      Promise.all([
+        api.get(`/finances/printing/invoices${filterType ? `?type=${filterType}` : ''}`).then(r => r.data.map(d => ({ ...d, _company: 'printing' }))),
+        api.get(`/finances/advertising/invoices${filterType ? `?type=${filterType}` : ''}`).then(r => r.data.map(d => ({ ...d, _company: 'advertising' }))),
+      ]).then(([p, a]) => setInvoices([...p, ...a])).catch(() => {});
+    } else {
+      loadInvoices(companySlug);
+    }
+  }, [companySlug, filterType, isCombined]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const slug = isCombined ? 'printing' : companySlug;
     try {
-      await api.post(`/finances/${companySlug}/invoices`, form);
+      await api.post(`/finances/${slug}/invoices`, form);
       setShowForm(false);
       setForm({ type: 'sale', invoice_number: '', vendor_client_name: '', amount: '', description: '', invoice_date: new Date().toISOString().split('T')[0] });
-      loadInvoices();
+      isCombined ? setInvoices(prev => [...prev, { ...form, _company: slug, id: 'temp_' + Date.now() }]) : loadInvoices(companySlug);
     } catch (err) { alert(t('فشل', 'Failed')); }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id, slug) => {
     if (!confirm(t('هل أنت متأكد؟', 'Are you sure?'))) return;
-    try { await api.delete(`/finances/${companySlug}/invoices/${id}`); loadInvoices(); }
+    try { await api.delete(`/finances/${slug || companySlug}/invoices/${id}`); isCombined ? setInvoices(prev => prev.filter(inv => inv.id !== id)) : loadInvoices(companySlug); }
     catch (err) { alert(t('فشل', 'Failed')); }
   };
 
@@ -232,6 +305,7 @@ function InvoicesTab({ companySlug, lang, t }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200">
+              {isCombined && <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الشركة', 'Company')}</th>}
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('رقم الفاتورة', 'Invoice #')}</th>
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('النوع', 'Type')}</th>
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الطرف', 'Party')}</th>
@@ -243,6 +317,13 @@ function InvoicesTab({ companySlug, lang, t }) {
           <tbody>
             {invoices.map(inv => (
               <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50">
+                {isCombined && (
+                  <td className="py-2 px-2">
+                    <span className={`px-2 py-0.5 rounded text-xs ${inv._company === 'printing' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                      {inv._company === 'printing' ? t('مطبعة', 'Print') : t('وكالة', 'Agency')}
+                    </span>
+                  </td>
+                )}
                 <td className="py-2 px-2 text-gray-500">{inv.invoice_number || '-'}</td>
                 <td className="py-2 px-2">
                   <span className={`px-2 py-0.5 rounded text-xs ${inv.type === 'sale' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
@@ -253,12 +334,12 @@ function InvoicesTab({ companySlug, lang, t }) {
                 <td className="py-2 px-2 font-bold">{inv.amount?.toLocaleString()}</td>
                 <td className="py-2 px-2 text-gray-500">{inv.invoice_date || '-'}</td>
                 <td className="py-2 px-2 text-center">
-                  <button onClick={() => handleDelete(inv.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 size="14" /></button>
+                  <button onClick={() => handleDelete(inv.id, inv._company)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 size="14" /></button>
                 </td>
               </tr>
             ))}
             {invoices.length === 0 && (
-              <tr><td colSpan="6" className="text-center py-8 text-gray-400">{t('لا توجد فواتير', 'No invoices')}</td></tr>
+              <tr><td colSpan={isCombined ? 7 : 6} className="text-center py-8 text-gray-400">{t('لا توجد فواتير', 'No invoices')}</td></tr>
             )}
           </tbody>
         </table>
@@ -295,8 +376,7 @@ function InvoicesTab({ companySlug, lang, t }) {
   );
 }
 
-/* ───── REPORTS TAB ───── */
-function ReportsTab({ companySlug, lang, t }) {
+function ReportsTab({ companySlug, lang, t, isCombined }) {
   const [reports, setReports] = useState([]);
   const year = new Date().getFullYear();
   const monthNames = lang === 'ar'
@@ -304,8 +384,29 @@ function ReportsTab({ companySlug, lang, t }) {
     : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
   useEffect(() => {
-    api.get(`/finances/${companySlug}/reports?year=${year}`).then(({ data }) => setReports(data)).catch(() => {});
-  }, [companySlug]);
+    if (isCombined) {
+      Promise.all([
+        api.get(`/finances/printing/reports?year=${year}`).then(r => r.data),
+        api.get(`/finances/advertising/reports?year=${year}`).then(r => r.data),
+      ]).then(([p, a]) => {
+        const merged = [];
+        for (let m = 1; m <= 12; m++) {
+          const pMonth = p.find(r => r.month === m) || { income: 0, expenses: 0, payroll: 0 };
+          const aMonth = a.find(r => r.month === m) || { income: 0, expenses: 0, payroll: 0 };
+          merged.push({
+            month: m,
+            income: (pMonth.income || 0) + (aMonth.income || 0),
+            expenses: (pMonth.expenses || 0) + (aMonth.expenses || 0),
+            payroll: (pMonth.payroll || 0) + (aMonth.payroll || 0),
+            net: (pMonth.income || 0) + (aMonth.income || 0) - (pMonth.expenses || 0) - (aMonth.expenses || 0) - (pMonth.payroll || 0) - (aMonth.payroll || 0),
+          });
+        }
+        setReports(merged);
+      }).catch(() => {});
+    } else {
+      api.get(`/finances/${companySlug}/reports?year=${year}`).then(({ data }) => setReports(data)).catch(() => {});
+    }
+  }, [companySlug, isCombined]);
 
   return (
     <div className="space-y-4">

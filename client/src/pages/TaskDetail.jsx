@@ -10,7 +10,6 @@ import toast from 'react-hot-toast';
 const PRINTING_STAGES = [
   { key: 'draft', labelAr: 'مسودة', labelEn: 'Draft' },
   { key: 'design_review', labelAr: 'تصميم وتدقيق', labelEn: 'Design & Review' },
-  { key: 'pending_approval', labelAr: 'موافقة المدير', labelEn: 'Manager Approval' },
   { key: 'production', labelAr: 'إنتاج', labelEn: 'Production' },
   { key: 'finishing', labelAr: 'تشطيب', labelEn: 'Finishing' },
   { key: 'ready_pickup', labelAr: 'جاهز للاستلام', labelEn: 'Ready for Pickup' },
@@ -145,7 +144,7 @@ export default function TaskDetail() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <button onClick={() => navigate('/tasks')} className="btn-ghost text-sm">
+      <button onClick={() => navigate('/projects-tasks')} className="btn-ghost text-sm">
         <ArrowRight size="16" /> {t('العودة للمهام', 'Back to Tasks')}
       </button>
 
