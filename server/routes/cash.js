@@ -33,12 +33,17 @@ router.get('/range/:companySlug', authenticate, companyAccess, async (req, res) 
   const db = getCompanyDb(req.params.companySlug);
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to required' });
-  const transactions = await db.prepare(`
-    SELECT * FROM cash_transactions
-    WHERE company_slug = ? AND created_at >= ? AND created_at < ?
-    ORDER BY created_at ASC
-  `).all(req.params.companySlug, `${from}T00:00:00`, `${to}T23:59:59`);
-  res.json(transactions);
+  try {
+    const transactions = await db.prepare(`
+      SELECT * FROM cash_transactions
+      WHERE company_slug = ? AND created_at >= ? AND created_at < ?
+      ORDER BY created_at ASC
+    `).all(req.params.companySlug, `${from}T00:00:00`, `${to}T23:59:59`);
+    res.json(transactions);
+  } catch (err) {
+    console.error('cash range error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
@@ -46,12 +51,18 @@ router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const { type, amount, description, reference_type, reference_id, category } = req.body;
   if (!type || !amount || amount <= 0) return res.status(400).json({ error: 'Valid type and amount required' });
   const id = 'cash_' + Date.now();
-  await db.prepare(`
-    INSERT INTO cash_transactions (id, type, amount, description, reference_type, reference_id, category, created_by, company_slug)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(id, type, amount, description || '', reference_type || null, reference_id || null, category || null, req.user.id, req.params.companySlug);
-  const tx = await db.prepare('SELECT * FROM cash_transactions WHERE id = ?').get(id);
-  res.json(tx);
+  try {
+    await db.prepare(`
+      INSERT INTO cash_transactions (id, type, amount, description, reference_type, reference_id, category, created_by, company_slug)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, type, amount, description || '', reference_type || null, reference_id || null, category || null, req.user.id, req.params.companySlug);
+    const tx = await db.prepare('SELECT * FROM cash_transactions WHERE id = ?').get(id);
+    if (!tx) return res.status(500).json({ error: 'Insert succeeded but row not found' });
+    res.json(tx);
+  } catch (err) {
+    console.error('cash POST error:', err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

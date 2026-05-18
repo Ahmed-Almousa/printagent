@@ -38,9 +38,10 @@ export default function CashMovement() {
     try {
       const { from, to } = dateRange;
       const txRes = await api.get(`/cash/range/${slug}?from=${from}&to=${to}`);
-      setTransactions(txRes.data);
+      console.log('loadData response:', txRes.data);
+      setTransactions(Array.isArray(txRes.data) ? txRes.data : []);
       let totalIn = 0, totalOut = 0;
-      txRes.data.forEach(tx => {
+      (Array.isArray(txRes.data) ? txRes.data : []).forEach(tx => {
         if (tx.type === 'in') totalIn += tx.amount;
         else totalOut += tx.amount;
       });
@@ -55,23 +56,29 @@ export default function CashMovement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!amount || amount <= 0) return;
+    if (!amount || amount <= 0) {
+      toast.error(t('المبلغ يجب أن يكون أكبر من صفر', 'Amount must be greater than zero'));
+      return;
+    }
     const slug = companyTab;
     if (!slug) { toast.error(t('خطأ في تحديد الشركة', 'Company error')); return; }
     try {
       const res = await api.post(`/cash/${slug}`, {
         type: txType, amount: parseFloat(amount), description, category, reference_type: referenceType || null,
       });
+      console.log('POST response:', res.data);
       if (!res.data) throw new Error('No data returned');
       setShowModal(false);
       setAmount('');
       setDescription('');
       setCategory('');
       setReferenceType('');
+      setTxType('in');
       toast.success(t('تم التسجيل', 'Recorded'));
-      loadData();
+      await loadData();
     } catch (err) {
       const msg = err.response?.data?.error || err.message || t('فشل الحفظ', 'Save failed');
+      console.error('handleSubmit error:', err.response?.data || err.message);
       toast.error(msg);
     }
   };
@@ -90,6 +97,13 @@ export default function CashMovement() {
   });
 
   const filteredTx = filter === 'all' ? txWithBalance : txWithBalance.filter(tx => tx.type === filter);
+
+  const groupedTx = filteredTx.reduce((acc, tx) => {
+    const key = tx.type === 'in' ? 'in' : 'out';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(tx);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -192,31 +206,54 @@ export default function CashMovement() {
               {filteredTx.length === 0 ? (
                 <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">{t('لا توجد معاملات', 'No transactions')}</td></tr>
               ) : (
-                filteredTx.map((tx, idx) => (
-                  <tr key={tx.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-2.5 text-gray-500">{idx + 1}</td>
-                    <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
-                      {format(new Date(tx.created_at), 'HH:mm:ss')}
-                      <span className="text-gray-400 text-xs mr-1">{format(new Date(tx.created_at), 'dd/MM')}</span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                        tx.type === 'in' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {tx.type === 'in' ? <ArrowDownCircle size="12" /> : <ArrowUpCircle size="12" />}
-                        {tx.type === 'in' ? t('قبض', 'In') : t('صرف', 'Out')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-700 max-w-xs truncate">{tx.description || '-'}</td>
-                    <td className="px-4 py-2.5 text-gray-500">{tx.category || '-'}</td>
-                    <td className={`px-4 py-2.5 font-medium ${tx.type === 'in' ? 'text-green-700' : 'text-red-700'}`}>
-                      {tx.amount.toLocaleString()} {t('ر.س', 'SAR')}
-                    </td>
-                    <td className={`px-4 py-2.5 font-medium ${tx.runningBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                      {tx.runningBalance.toLocaleString()} {t('ر.س', 'SAR')}
-                    </td>
-                  </tr>
-                ))
+                <>
+                  {groupedTx.in && (
+                    <>
+                      <tr className="bg-green-50/50"><td colSpan="7" className="px-4 py-2 text-xs font-bold text-green-700">{t('المقبوضات', 'Cash In')}</td></tr>
+                      {groupedTx.in.map((tx, idx) => (
+                        <tr key={tx.id} className="border-b border-gray-100 hover:bg-green-50/30 transition-colors">
+                          <td className="px-4 py-2.5 text-gray-500">{idx + 1}</td>
+                          <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
+                            {format(new Date(tx.created_at), 'HH:mm:ss')}
+                            <span className="text-gray-400 text-xs mr-1">{format(new Date(tx.created_at), 'dd/MM')}</span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <ArrowDownCircle size="12" /> {t('قبض', 'In')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-700 max-w-xs truncate">{tx.description || '-'}</td>
+                          <td className="px-4 py-2.5 text-gray-500">{tx.category || '-'}</td>
+                          <td className="px-4 py-2.5 font-medium text-green-700">{tx.amount.toLocaleString()} {t('ر.س', 'SAR')}</td>
+                          <td className="px-4 py-2.5 font-medium text-blue-700">{tx.runningBalance.toLocaleString()} {t('ر.س', 'SAR')}</td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
+                  {groupedTx.out && (
+                    <>
+                      <tr className="bg-red-50/50"><td colSpan="7" className="px-4 py-2 text-xs font-bold text-red-700">{t('المدفوعات', 'Cash Out')}</td></tr>
+                      {groupedTx.out.map((tx, idx) => (
+                        <tr key={tx.id} className="border-b border-gray-100 hover:bg-red-50/30 transition-colors">
+                          <td className="px-4 py-2.5 text-gray-500">{idx + 1}</td>
+                          <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
+                            {format(new Date(tx.created_at), 'HH:mm:ss')}
+                            <span className="text-gray-400 text-xs mr-1">{format(new Date(tx.created_at), 'dd/MM')}</span>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                              <ArrowUpCircle size="12" /> {t('صرف', 'Out')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-700 max-w-xs truncate">{tx.description || '-'}</td>
+                          <td className="px-4 py-2.5 text-gray-500">{tx.category || '-'}</td>
+                          <td className="px-4 py-2.5 font-medium text-red-700">{tx.amount.toLocaleString()} {t('ر.س', 'SAR')}</td>
+                          <td className="px-4 py-2.5 font-medium text-blue-700">{tx.runningBalance.toLocaleString()} {t('ر.س', 'SAR')}</td>
+                        </tr>
+                      ))}
+                    </>
+                  )}
+                </>
               )}
             </tbody>
             <tfoot>
