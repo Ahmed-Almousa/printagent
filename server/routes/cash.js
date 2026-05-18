@@ -36,12 +36,23 @@ router.get('/range/:companySlug', authenticate, companyAccess, async (req, res) 
   try {
     const transactions = await db.prepare(`
       SELECT * FROM cash_transactions
-      WHERE company_slug = ? AND created_at >= ? AND created_at < ?
+      WHERE company_slug = ? AND DATE(created_at) >= DATE(?) AND DATE(created_at) <= DATE(?)
       ORDER BY created_at ASC
-    `).all(req.params.companySlug, `${from}T00:00:00`, `${to}T23:59:59`);
+    `).all(req.params.companySlug, from, to);
     res.json(transactions);
   } catch (err) {
     console.error('cash range error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Debug: return latest 50 rows without date filter
+router.get('/debug/:companySlug', authenticate, companyAccess, async (req, res) => {
+  const db = getCompanyDb(req.params.companySlug);
+  try {
+    const all = await db.prepare('SELECT * FROM cash_transactions WHERE company_slug = ? ORDER BY created_at DESC LIMIT 50').all(req.params.companySlug);
+    res.json({ count: all.length, rows: all });
+  } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
