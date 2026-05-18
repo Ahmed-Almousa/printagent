@@ -46,7 +46,7 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<ProtectedPage page="dashboard"><Dashboard /></ProtectedPage>} />
           <Route path="projects-tasks" element={<ProtectedPage page="projects"><ProjectsAndTasks /></ProtectedPage>} />
-          <Route path="tasks/:companySlug/:taskId" element={<ProtectedPage page="tasks"><TaskDetail /></ProtectedPage>} />
+          <Route path="tasks/:companySlug/:taskId" element={<ProtectedPage page="projects"><TaskDetail /></ProtectedPage>} />
           <Route path="employees" element={<ProtectedPage page="employees"><Employees /></ProtectedPage>} />
           <Route path="attendance" element={<ProtectedPage page="attendance"><Attendance /></ProtectedPage>} />
           <Route path="requests" element={<ProtectedPage page="requests"><Requests /></ProtectedPage>} />

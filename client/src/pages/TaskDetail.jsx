@@ -65,7 +65,10 @@ export default function TaskDetail() {
       setTask(data);
       setComments(data.comments || []);
       setAttachments(data.attachments || []);
-    }).catch(() => navigate('/projects-tasks'));
+    }).catch((err) => {
+      console.error('Failed to load task:', err?.response?.status, err?.message);
+      navigate('/projects-tasks', { replace: true });
+    });
     api.get(`/users/${companySlug}`).then(({ data }) => setUsers(data)).catch(() => {});
   }, [companySlug, taskId]);
 
@@ -132,7 +135,7 @@ export default function TaskDetail() {
       }
       toast.success(t('تم نقل المشروع للأرشيف', 'Project archived'));
       setShowArchiveModal(false);
-      navigate('/archive');
+      navigate('/archive', { replace: true });
     } catch (err) {
       toast.error(t('فشل الأرشفة', 'Archive failed'));
     }
@@ -144,7 +147,7 @@ export default function TaskDetail() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
-      <button onClick={() => navigate('/projects-tasks')} className="btn-ghost text-sm">
+      <button onClick={() => navigate(-1)} className="btn-ghost text-sm">
         <ArrowRight size="16" /> {t('العودة للمهام', 'Back to Tasks')}
       </button>
 
