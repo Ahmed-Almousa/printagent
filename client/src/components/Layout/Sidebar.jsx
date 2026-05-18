@@ -10,12 +10,12 @@ import {
 
 const menuItems = [
   { path: '/', icon: LayoutDashboard, label: 'لوحة التحكم', labelEn: 'Dashboard', page: 'dashboard' },
+  { path: '/cash', icon: Receipt, label: 'الحركة اليومية', labelEn: 'Cash Movement', page: 'cash' },
   { path: '/projects-tasks', icon: FolderKanban, label: 'المشاريع والمهام', labelEn: 'Projects & Tasks', page: 'projects' },
   { path: '/employees', icon: Users, label: 'الموظفون', labelEn: 'Employees', page: 'employees' },
   { path: '/attendance', icon: Clock, label: 'الحضور', labelEn: 'Attendance', page: 'attendance' },
   { path: '/requests', icon: ClipboardList, label: 'الطلبات', labelEn: 'Requests', page: 'requests' },
   { path: '/finances', icon: Wallet, label: 'المالية', labelEn: 'Finances', page: 'finances' },
-  { path: '/cash', icon: Receipt, label: 'الحركة اليومية', labelEn: 'Cash Movement', page: 'cash' },
   { path: '/permissions', icon: Shield, label: 'الصلاحيات', labelEn: 'Permissions', page: 'permissions' },
   { path: '/settings', icon: Settings, label: 'الإعدادات', labelEn: 'Settings', page: 'settings' },
   { path: '/archive', icon: Archive, label: 'الأرشيف', labelEn: 'Archive', page: 'archive' },

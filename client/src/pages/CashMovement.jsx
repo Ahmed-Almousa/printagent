@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Search, X, Building2 } from 'lucide-react';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 
 const COMPANY_TABS = [
   { slug: 'printing', labelAr: 'المطبعة', labelEn: 'Printing', color: 'border-blue-500 text-blue-700 bg-blue-50' },
@@ -15,7 +16,7 @@ export default function CashMovement() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'super_admin';
   const t = (ar, en) => lang === 'ar' ? ar : en;
-  const [companyTab, setCompanyTab] = useState(activeCompany);
+  const [companyTab, setCompanyTab] = useState(activeCompany || 'printing');
   const [transactions, setTransactions] = useState([]);
   const [balance, setBalance] = useState({ in: 0, out: 0, balance: 0 });
   const [showModal, setShowModal] = useState(false);
@@ -27,27 +28,27 @@ export default function CashMovement() {
   const [filter, setFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) });
 
+  useEffect(() => {
+    if (!isSuperAdmin && activeCompany) setCompanyTab(activeCompany);
+  }, [activeCompany, isSuperAdmin]);
+
   const loadData = useCallback(async () => {
+    const slug = companyTab;
+    if (!slug) return;
     try {
-      const slug = companyTab;
       const { from, to } = dateRange;
-      const [txRes, balRes] = await Promise.all([
-        api.get(`/cash/range/${slug}?from=${from}&to=${to}`),
-        from === to ? api.get(`/cash/balance/${slug}`) : Promise.resolve({ data: { in: 0, out: 0, balance: 0 } }),
-        from !== to ? api.get(`/cash/range/${slug}?from=${from}&to=${to}`) : Promise.resolve(),
-      ]);
+      const txRes = await api.get(`/cash/range/${slug}?from=${from}&to=${to}`);
       setTransactions(txRes.data);
-      if (from === to) {
-        setBalance(balRes.data);
-      } else {
-        let totalIn = 0, totalOut = 0;
-        txRes.data.forEach(tx => {
-          if (tx.type === 'in') totalIn += tx.amount;
-          else totalOut += tx.amount;
-        });
-        setBalance({ in: totalIn, out: totalOut, balance: totalIn - totalOut });
-      }
-    } catch (err) { console.error(err); }
+      let totalIn = 0, totalOut = 0;
+      txRes.data.forEach(tx => {
+        if (tx.type === 'in') totalIn += tx.amount;
+        else totalOut += tx.amount;
+      });
+      setBalance({ in: totalIn, out: totalOut, balance: totalIn - totalOut });
+    } catch (err) {
+      console.error('loadData error:', err);
+      toast.error(t('فشل تحميل البيانات', 'Failed to load data'));
+    }
   }, [companyTab, dateRange]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -55,17 +56,24 @@ export default function CashMovement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!amount || amount <= 0) return;
+    const slug = companyTab;
+    if (!slug) { toast.error(t('خطأ في تحديد الشركة', 'Company error')); return; }
     try {
-      await api.post(`/cash/${companyTab}`, {
+      const res = await api.post(`/cash/${slug}`, {
         type: txType, amount: parseFloat(amount), description, category, reference_type: referenceType || null,
       });
+      if (!res.data) throw new Error('No data returned');
       setShowModal(false);
       setAmount('');
       setDescription('');
       setCategory('');
       setReferenceType('');
+      toast.success(t('تم التسجيل', 'Recorded'));
       loadData();
-    } catch (err) { alert(err.response?.data?.error || 'Error'); }
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || t('فشل الحفظ', 'Save failed');
+      toast.error(msg);
+    }
   };
 
   const categories = t(
