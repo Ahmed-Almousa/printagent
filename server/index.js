@@ -76,6 +76,11 @@ async function bootstrap() {
   app.get('*', (req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
+
+  app.use((err, req, res, next) => {
+    console.error('Global error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
 }
 
 io.on('connection', (socket) => {

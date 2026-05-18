@@ -63,9 +63,9 @@ export function requirePermission(...permKeys) {
   };
 }
 
-export function companyAccess(req, res, next) {
+export async function companyAccess(req, res, next) {
   if (req.user.role === 'super_admin') return next();
-  (async () => {
+  try {
     const { companySlug } = req.params;
     const masterDb = getMasterDb();
     const company = await masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(companySlug);
@@ -75,5 +75,7 @@ export function companyAccess(req, res, next) {
     }
     req.company = company;
     next();
-  })();
+  } catch (err) {
+    next(err);
+  }
 }

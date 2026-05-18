@@ -77,8 +77,8 @@ router.get('/companies/:slug/stats', authenticate, async (req, res) => {
 
   const year = req.query.year || new Date().getFullYear();
   const monthlyTasks = await db.prepare(`
-    SELECT CAST(EXTRACT(MONTH FROM created_at) AS INTEGER) as month, COUNT(*) as count
-    FROM tasks WHERE EXTRACT(YEAR FROM created_at) = ?
+    SELECT CAST(strftime('%m', created_at) AS INTEGER) as month, COUNT(*) as count
+    FROM tasks WHERE strftime('%Y', created_at) = ?
     GROUP BY month ORDER BY month
   `).all(String(year));
 
