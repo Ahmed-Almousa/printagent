@@ -76,4 +76,30 @@ router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
   }
 });
 
-export default router;
+router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  const db = getCompanyDb(req.params.companySlug);
+  const { type, amount, description, reference_type, category } = req.body;
+  if (!type || !amount || amount <= 0) return res.status(400).json({ error: 'Valid type and amount required' });
+  try {
+    await db.prepare(`
+      UPDATE cash_transactions SET type = ?, amount = ?, description = ?, reference_type = ?, category = ?
+      WHERE id = ? AND company_slug = ?
+    `).run(type, amount, description || '', reference_type || null, category || null, req.params.id, req.params.companySlug);
+    const tx = await db.prepare('SELECT * FROM cash_transactions WHERE id = ?').get(req.params.id);
+    res.json(tx);
+  } catch (err) {
+    console.error('cash PUT error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  const db = getCompanyDb(req.params.companySlug);
+  try {
+    await db.prepare('DELETE FROM cash_transactions WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('cash DELETE error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});

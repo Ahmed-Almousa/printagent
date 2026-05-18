@@ -26,6 +26,7 @@ export default function CashMovement() {
   const [category, setCategory] = useState('');
   const [referenceType, setReferenceType] = useState('');
   const [filter, setFilter] = useState('all');
+  const [editTx, setEditTx] = useState(null);
   const [dateRange, setDateRange] = useState({ from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) });
 
   useEffect(() => {
@@ -66,21 +67,79 @@ export default function CashMovement() {
       const res = await api.post(`/cash/${slug}`, {
         type: txType, amount: parseFloat(amount), description, category, reference_type: referenceType || null,
       });
-      console.log('POST response:', res.data);
       if (!res.data) throw new Error('No data returned');
       setShowModal(false);
-      setAmount('');
-      setDescription('');
-      setCategory('');
-      setReferenceType('');
-      setTxType('in');
+      resetForm();
       toast.success(t('تم التسجيل', 'Recorded'));
       await loadData();
     } catch (err) {
       const msg = err.response?.data?.error || err.message || t('فشل الحفظ', 'Save failed');
-      console.error('handleSubmit error:', err.response?.data || err.message);
       toast.error(msg);
     }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!amount || amount <= 0) {
+      toast.error(t('المبلغ يجب أن يكون أكبر من صفر', 'Amount must be greater than zero'));
+      return;
+    }
+    const slug = companyTab;
+    if (!slug || !editTx) return;
+    try {
+      await api.put(`/cash/${slug}/${editTx.id}`, {
+        type: txType, amount: parseFloat(amount), description, category, reference_type: referenceType || null,
+      });
+      setShowModal(false);
+      setEditTx(null);
+      resetForm();
+      toast.success(t('تم التحديث', 'Updated'));
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('فشل التحديث', 'Update failed'));
+    }
+  };
+
+  const handleDelete = async (tx) => {
+    if (!confirm(t('هل أنت متأكد من حذف هذه الحركة؟', 'Delete this transaction?'))) return;
+    const slug = companyTab;
+    if (!slug) return;
+    try {
+      await api.delete(`/cash/${slug}/${tx.id}`);
+      toast.success(t('تم الحذف', 'Deleted'));
+      await loadData();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('فشل الحذف', 'Delete failed'));
+    }
+  };
+
+  const handleDuplicate = (tx) => {
+    setTxType(tx.type);
+    setAmount(String(tx.amount));
+    setDescription(tx.description || '');
+    setCategory(tx.category || '');
+    setReferenceType(tx.reference_type || '');
+    setEditTx(null);
+    setShowModal(true);
+  };
+
+  const openEdit = (tx) => {
+    setEditTx(tx);
+    setTxType(tx.type);
+    setAmount(String(tx.amount));
+    setDescription(tx.description || '');
+    setCategory(tx.category || '');
+    setReferenceType(tx.reference_type || '');
+    setShowModal(true);
+  };
+
+  const resetForm = () => {
+    setAmount('');
+    setDescription('');
+    setCategory('');
+    setReferenceType('');
+    setTxType('in');
+    setEditTx(null);
   };
 
   const categories = t(
@@ -200,16 +259,17 @@ export default function CashMovement() {
                 <th className="px-4 py-3 text-right text-gray-600 font-medium">{t('التصنيف', 'Category')}</th>
                 <th className="px-4 py-3 text-right text-gray-600 font-medium">{t('المبلغ', 'Amount')}</th>
                 <th className="px-4 py-3 text-right text-gray-600 font-medium">{t('الرصيد', 'Balance')}</th>
+                <th className="px-2 py-3 text-center text-gray-600 font-medium">{t('إجراءات', 'Actions')}</th>
               </tr>
             </thead>
             <tbody>
               {filteredTx.length === 0 ? (
-                <tr><td colSpan="7" className="px-4 py-8 text-center text-gray-400">{t('لا توجد معاملات', 'No transactions')}</td></tr>
+                <tr><td colSpan="8" className="px-4 py-8 text-center text-gray-400">{t('لا توجد معاملات', 'No transactions')}</td></tr>
               ) : (
                 <>
                   {groupedTx.in && (
                     <>
-                      <tr className="bg-green-50/50"><td colSpan="7" className="px-4 py-2 text-xs font-bold text-green-700">{t('المقبوضات', 'Cash In')}</td></tr>
+                      <tr className="bg-green-50/50"><td colSpan="8" className="px-4 py-2 text-xs font-bold text-green-700">{t('المقبوضات', 'Cash In')}</td></tr>
                       {groupedTx.in.map((tx, idx) => (
                         <tr key={tx.id} className="border-b border-gray-100 hover:bg-green-50/30 transition-colors">
                           <td className="px-4 py-2.5 text-gray-500">{idx + 1}</td>
@@ -226,13 +286,26 @@ export default function CashMovement() {
                           <td className="px-4 py-2.5 text-gray-500">{tx.category || '-'}</td>
                           <td className="px-4 py-2.5 font-medium text-green-700">{tx.amount.toLocaleString()} {t('ر.س', 'SAR')}</td>
                           <td className="px-4 py-2.5 font-medium text-blue-700">{tx.runningBalance.toLocaleString()} {t('ر.س', 'SAR')}</td>
+                          <td className="px-2 py-2.5">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => openEdit(tx)} className="p-1 hover:bg-blue-50 rounded text-blue-500 hover:text-blue-700 transition-colors" title={t('تعديل', 'Edit')}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button onClick={() => handleDuplicate(tx)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors" title={t('تكرار', 'Duplicate')}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                              </button>
+                              <button onClick={() => handleDelete(tx)} className="p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600 transition-colors" title={t('حذف', 'Delete')}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </>
                   )}
                   {groupedTx.out && (
                     <>
-                      <tr className="bg-red-50/50"><td colSpan="7" className="px-4 py-2 text-xs font-bold text-red-700">{t('المدفوعات', 'Cash Out')}</td></tr>
+                      <tr className="bg-red-50/50"><td colSpan="8" className="px-4 py-2 text-xs font-bold text-red-700">{t('المدفوعات', 'Cash Out')}</td></tr>
                       {groupedTx.out.map((tx, idx) => (
                         <tr key={tx.id} className="border-b border-gray-100 hover:bg-red-50/30 transition-colors">
                           <td className="px-4 py-2.5 text-gray-500">{idx + 1}</td>
@@ -249,6 +322,19 @@ export default function CashMovement() {
                           <td className="px-4 py-2.5 text-gray-500">{tx.category || '-'}</td>
                           <td className="px-4 py-2.5 font-medium text-red-700">{tx.amount.toLocaleString()} {t('ر.س', 'SAR')}</td>
                           <td className="px-4 py-2.5 font-medium text-blue-700">{tx.runningBalance.toLocaleString()} {t('ر.س', 'SAR')}</td>
+                          <td className="px-2 py-2.5">
+                            <div className="flex items-center justify-center gap-1">
+                              <button onClick={() => openEdit(tx)} className="p-1 hover:bg-blue-50 rounded text-blue-500 hover:text-blue-700 transition-colors" title={t('تعديل', 'Edit')}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                              </button>
+                              <button onClick={() => handleDuplicate(tx)} className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 transition-colors" title={t('تكرار', 'Duplicate')}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                              </button>
+                              <button onClick={() => handleDelete(tx)} className="p-1 hover:bg-red-50 rounded text-red-400 hover:text-red-600 transition-colors" title={t('حذف', 'Delete')}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                              </button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </>
@@ -265,21 +351,22 @@ export default function CashMovement() {
                 <td className={`px-4 py-3 ${balance.balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
                   {balance.balance.toLocaleString()} {t('ر.س', 'SAR')}
                 </td>
+                <td className="px-2 py-3"></td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
-      {/* Add Transaction Modal */}
+      {/* Add/Edit Transaction Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowModal(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setShowModal(false); resetForm(); }}>
           <div className="bg-white rounded-xl p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-800">{t('عملية نقدية جديدة', 'New Cash Transaction')}</h2>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-gray-100 rounded"><X size="20" /></button>
+              <h2 className="text-lg font-bold text-gray-800">{editTx ? t('تعديل عملية نقدية', 'Edit Transaction') : t('عملية نقدية جديدة', 'New Transaction')}</h2>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="p-1 hover:bg-gray-100 rounded"><X size="20" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={editTx ? handleUpdate : handleSubmit} className="space-y-4">
               <div className="flex gap-2">
                 <button type="button" onClick={() => setTxType('in')}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
@@ -336,8 +423,8 @@ export default function CashMovement() {
                   className={`flex-1 py-2.5 rounded-lg text-sm font-medium text-white transition-colors ${
                     txType === 'in' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
                   }`}
-                >{t('تسجيل', 'Record')}</button>
-                <button type="button" onClick={() => setShowModal(false)}
+                >{editTx ? t('تحديث', 'Update') : t('تسجيل', 'Record')}</button>
+                <button type="button" onClick={() => { setShowModal(false); resetForm(); }}
                   className="px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors"
                 >{t('إلغاء', 'Cancel')}</button>
               </div>
