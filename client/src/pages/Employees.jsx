@@ -8,7 +8,6 @@ import toast from 'react-hot-toast';
 const PRINTING_STAGES = [
   { key: 'draft', labelAr: 'مسودة', labelEn: 'Draft' },
   { key: 'design_review', labelAr: 'تصميم وتدقيق', labelEn: 'Design & Review' },
-  { key: 'pending_approval', labelAr: 'موافقة المدير', labelEn: 'Manager Approval' },
   { key: 'production', labelAr: 'إنتاج', labelEn: 'Production' },
   { key: 'finishing', labelAr: 'تشطيب', labelEn: 'Finishing' },
   { key: 'ready_pickup', labelAr: 'جاهز للاستلام', labelEn: 'Ready for Pickup' },

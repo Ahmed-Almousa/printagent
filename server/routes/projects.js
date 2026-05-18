@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getCompanyDb } from '../config/database.js';
+import { getCompanyDb, getMasterDb } from '../config/database.js';
 import { authenticate, companyAccess } from '../middleware/auth.js';
 
 const router = Router();
@@ -28,6 +28,30 @@ router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
   await db.prepare('INSERT INTO projects (id, title, description, client_name, order_value, down_payment, request_date, request_type_id, execution_method, created_by) VALUES (?,?,?,?,?,?,?,?,?,?)')
     .run(id, title, description, client_name, order_value || 0, down_payment || 0, request_date || null, request_type_id || null, execution_method || 'internal', req.user.id);
   const project = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ?').get(id);
+  res.json(project);
+});
+
+router.put('/approve/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  const db = getCompanyDb(req.params.companySlug);
+  const company = req.params.companySlug;
+  const firstStage = FIRST_STAGES[company] || 'draft';
+  await db.prepare('UPDATE projects SET stage = ?, status = ? WHERE id = ?').run(firstStage, 'active', req.params.id);
+  const masterDb = getMasterDb();
+  const project = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ?').get(req.params.id);
+  const user = await masterDb.prepare('SELECT full_name FROM users WHERE id = ?').get(req.user.id);
+  await db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)')
+    .run(req.user.id, 'تمت الموافقة على مشروع', `تمت الموافقة على المشروع "${project?.title || 'غير معروف'}" من قبل ${user?.full_name || 'المدير'}`, 'success');
+  res.json(project);
+});
+
+router.put('/reject/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  const db = getCompanyDb(req.params.companySlug);
+  const masterDb = getMasterDb();
+  const user = await masterDb.prepare('SELECT full_name FROM users WHERE id = ?').get(req.user.id);
+  await db.prepare('UPDATE projects SET is_archived = 1, status = ? WHERE id = ?').run('rejected', req.params.id);
+  const project = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ?').get(req.params.id);
+  await db.prepare('INSERT INTO notifications (user_id, title, message, type) VALUES (?, ?, ?, ?)')
+    .run(req.user.id, 'تم رفض مشروع', `تم رفض المشروع "${project?.title || 'غير معروف'}" من قبل ${user?.full_name || 'المدير'}`, 'error');
   res.json(project);
 });
 

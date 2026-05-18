@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useCompany } from '../contexts/CompanyContext';
 import api from '../utils/api';
-import { Archive, ChevronDown, ChevronUp, MessageSquare, Paperclip, Calendar, User, Download, XCircle, CheckCircle } from 'lucide-react';
+import { Archive, ChevronDown, ChevronUp, MessageSquare, Paperclip, Calendar, User, Download, XCircle, CheckCircle, Ban } from 'lucide-react';
 
 const STAGE_LABELS = {
   delivered: { ar: 'تم التسليم', en: 'Delivered', color: 'bg-green-100 text-green-700' },
   cancelled: { ar: 'ملغي', en: 'Cancelled', color: 'bg-red-100 text-red-700' },
   archived: { ar: 'مؤرشف', en: 'Archived', color: 'bg-orange-100 text-orange-700' },
+  rejected: { ar: 'مرفوض', en: 'Rejected', color: 'bg-red-200 text-red-800' },
 };
 
 export default function ArchivePage() {
@@ -20,7 +21,11 @@ export default function ArchivePage() {
     api.get(`/archive/${activeCompany}`).then(({ data }) => setProjects(data)).catch(() => {});
   }, [activeCompany]);
 
-  const stageInfo = (stage) => STAGE_LABELS[stage] || { ar: stage, en: stage, color: 'bg-gray-100 text-gray-600' };
+  const stageInfo = (proj) => {
+    if (proj.status === 'rejected') return STAGE_LABELS.rejected;
+    if (proj.is_archived === 1 && !proj.stage) return { ar: 'مرفوض من الإدارة', en: 'Rejected by Management', color: 'bg-red-200 text-red-800' };
+    return STAGE_LABELS[proj.stage] || { ar: proj.stage || 'غير معروف', en: proj.stage || 'Unknown', color: 'bg-gray-100 text-gray-600' };
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-4">
@@ -34,6 +39,7 @@ export default function ArchivePage() {
         <span className="flex items-center gap-1"><CheckCircle size="12" className="text-green-600" /> {t('تم التسليم', 'Delivered')}</span>
         <span className="flex items-center gap-1"><XCircle size="12" className="text-red-600" /> {t('ملغي', 'Cancelled')}</span>
         <span className="flex items-center gap-1"><Archive size="12" className="text-orange-600" /> {t('مؤرشف', 'Archived')}</span>
+        <span className="flex items-center gap-1"><Ban size="12" className="text-red-800" /> {t('مرفوض', 'Rejected')}</span>
       </div>
 
       {projects.length === 0 ? (
@@ -43,9 +49,9 @@ export default function ArchivePage() {
         </div>
       ) : (
         projects.map(proj => {
-          const stage = stageInfo(proj.stage);
+          const stage = stageInfo(proj);
           return (
-            <div key={proj.id} className="card overflow-hidden">
+            <div key={proj.id} className={`card overflow-hidden ${proj.status === 'rejected' ? 'border-r-4 border-r-red-500 bg-red-50/30' : ''}`}>
               <div
                 className="flex items-center justify-between cursor-pointer"
                 onClick={() => setExpandedProject(expandedProject === proj.id ? null : proj.id)}
@@ -53,11 +59,15 @@ export default function ArchivePage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h2 className="text-lg font-semibold text-gray-800">{proj.title}</h2>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${stage.color}`}>{t(stage.ar, stage.en)}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${stage.color}`}>
+                      {proj.status === 'rejected' ? <Ban size="10" className="inline mr-1" /> : null}
+                      {t(stage.ar, stage.en)}
+                    </span>
                   </div>
                   <p className="text-sm text-gray-500 mt-1">{proj.description || t('لا يوجد وصف', 'No description')}</p>
                   <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-400">
                     {proj.client_name && <span>{t('العميل', 'Client')}: {proj.client_name}</span>}
+                    {proj.status === 'rejected' && <span className="text-red-600 font-medium flex items-center gap-1"><Ban size="10" /> {t('مرفوض من قبل الإدارة', 'Rejected by management')}</span>}
                     {proj.archive_reason && <span className="text-orange-600">{t('السبب', 'Reason')}: {proj.archive_reason}</span>}
                     {proj.stage === 'cancelled' && <span className="text-red-600">{t('ملغي', 'Cancelled')}</span>}
                     <span><Calendar size="12" className="inline" /> {new Date(proj.created_at).toLocaleDateString()}</span>

@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '../contexts/CompanyContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import {
   Plus, Search, Edit3, Trash2, FolderKanban, Calendar, Tag, GitBranch,
-  DollarSign, CreditCard, Send, MoreHorizontal, User, Clock, PlusCircle, Archive
+  DollarSign, CreditCard, Send, MoreHorizontal, User, Clock, PlusCircle, Archive,
+  CheckCircle, XCircle, AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -18,8 +19,7 @@ const EXECUTION_METHODS = [
 const PRINTING_STAGES = [
   { key: 'draft', labelAr: 'مسودة', labelEn: 'Draft', color: 'border-t-gray-400' },
   { key: 'design_review', labelAr: 'تصميم وتدقيق', labelEn: 'Design & Review', color: 'border-t-blue-400' },
-  { key: 'pending_approval', labelAr: 'موافقة المدير', labelEn: 'Manager Approval', color: 'border-t-yellow-400' },
-  { key: 'production', labelAr: 'إنتاج', labelEn: 'Production', color: 'border-t-purple-400', requireApproval: true },
+  { key: 'production', labelAr: 'إنتاج', labelEn: 'Production', color: 'border-t-purple-400' },
   { key: 'finishing', labelAr: 'تشطيب', labelEn: 'Finishing', color: 'border-t-orange-400' },
   { key: 'ready_pickup', labelAr: 'جاهز للاستلام', labelEn: 'Ready for Pickup', color: 'border-t-green-400' },
   { key: 'delivered', labelAr: 'تم التسليم', labelEn: 'Delivered', color: 'border-t-green-600' },
@@ -63,16 +63,16 @@ export default function ProjectsAndTasks() {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [taskForm, setTaskForm] = useState({ project_id: '', title: '', description: '', assignee_id: '', priority: 'medium', due_date: '' });
 
-  const loadAll = () => {
+  const loadAll = useCallback(() => {
     api.get(`/projects/${activeCompany}?in_tasks=0`).then(({ data }) => setProjects(data)).catch(() => {});
     api.get(`/projects/${activeCompany}?in_tasks=1`).then(({ data }) => setProjectsInTasks(data)).catch(() => {});
     const params = selectedProject ? `?project_id=${selectedProject}` : '';
     api.get(`/tasks/${activeCompany}${params}`).then(({ data }) => setTasks(data)).catch(() => {});
     api.get(`/users/${activeCompany}`).then(({ data }) => setUsers(data)).catch(() => {});
     api.get(`/settings/${activeCompany}/request-types`).then(({ data }) => setRequestTypes(data)).catch(() => {});
-  };
+  }, [activeCompany, selectedProject]);
 
-  useEffect(() => { loadAll(); }, [activeCompany, selectedProject]);
+  useEffect(() => { loadAll(); }, [activeCompany, selectedProject, loadAll]);
 
   const handleProjSubmit = async (e) => {
     e.preventDefault();
@@ -95,6 +95,23 @@ export default function ProjectsAndTasks() {
     if (!confirm(t('هل أنت متأكد؟', 'Are you sure?'))) return;
     try { await api.delete(`/projects/${activeCompany}/${id}`); toast.success(t('تم الحذف', 'Deleted')); loadAll(); }
     catch (err) { toast.error(t('حدث خطأ', 'Error')); }
+  };
+
+  const handleApprove = async (id) => {
+    try {
+      const firstStage = isPrinting ? 'draft' : 'brief';
+      await api.put(`/projects/approve/${activeCompany}/${id}`);
+      toast.success(t('تمت الموافقة ونقل المشروع للمهام', 'Approved & moved to tasks'));
+      loadAll();
+    } catch (err) { toast.error(t('حدث خطأ', 'Error')); }
+  };
+
+  const handleReject = async (id) => {
+    try {
+      await api.put(`/projects/reject/${activeCompany}/${id}`);
+      toast.success(t('تم رفض المشروع ونقله للأرشيف', 'Rejected & archived'));
+      loadAll();
+    } catch (err) { toast.error(t('حدث خطأ', 'Error')); }
   };
 
   const handleSendToTasks = async (id) => {
@@ -197,13 +214,10 @@ export default function ProjectsAndTasks() {
                   <FolderKanban size="16" className="text-primary-600 mt-0.5" />
                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                     {hasPermission('projects.edit') && (
-                      <button onClick={() => handleSendToTasks(p.id)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title={t('إرسال للمهام', 'Send to tasks')}><Send size="13" /></button>
-                    )}
-                    {hasPermission('projects.edit') && (
-                      <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-gray-100 text-gray-400"><Edit3 size="13" /></button>
+                      <button onClick={() => openEdit(p)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-blue-600" title={t('تعديل', 'Edit')}><Edit3 size="13" /></button>
                     )}
                     {hasPermission('projects.delete') && (
-                      <button onClick={() => handleDeleteProj(p.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 size="13" /></button>
+                      <button onClick={() => handleDeleteProj(p.id)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title={t('حذف', 'Delete')}><Trash2 size="13" /></button>
                     )}
                   </div>
                 </div>
@@ -218,6 +232,16 @@ export default function ProjectsAndTasks() {
                   <div className="flex gap-2 text-[10px] text-gray-500 mt-2 pt-2 border-t">
                     {p.order_value > 0 && <span><DollarSign size="10" className="inline" /> {p.order_value?.toLocaleString()}</span>}
                     {p.down_payment > 0 && <span className="text-green-600"><CreditCard size="10" className="inline" /> {p.down_payment?.toLocaleString()}</span>}
+                  </div>
+                )}
+                {(user?.role === 'manager' || user?.role === 'super_admin') && (
+                  <div className="flex gap-2 mt-3 pt-3 border-t">
+                    <button onClick={() => handleApprove(p.id)} className="flex-1 py-1.5 text-xs font-medium bg-green-50 hover:bg-green-100 text-green-700 rounded-lg flex items-center justify-center gap-1 transition-colors">
+                      <CheckCircle size="13" /> {t('موافقة', 'Approve')}
+                    </button>
+                    <button onClick={() => handleReject(p.id)} className="flex-1 py-1.5 text-xs font-medium bg-red-50 hover:bg-red-100 text-red-700 rounded-lg flex items-center justify-center gap-1 transition-colors">
+                      <XCircle size="13" /> {t('رفض', 'Reject')}
+                    </button>
                   </div>
                 )}
               </div>
