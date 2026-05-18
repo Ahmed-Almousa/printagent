@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { getCompanyDb } from '../config/database.js';
 import { authenticate, companyAccess } from '../middleware/auth.js';
-import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -46,7 +45,7 @@ router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { type, amount, description, reference_type, reference_id, category } = req.body;
   if (!type || !amount || amount <= 0) return res.status(400).json({ error: 'Valid type and amount required' });
-  const id = uuidv4();
+  const id = 'cash_' + Date.now();
   await db.prepare(`
     INSERT INTO cash_transactions (id, type, amount, description, reference_type, reference_id, category, created_by, company_slug)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
