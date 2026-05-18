@@ -5,7 +5,7 @@ import { getAccessiblePages } from '../../utils/permissions';
 import {
   LayoutDashboard, FolderKanban, ListTodo, Users, Clock,
   CalendarCheck, HandCoins, DollarSign, Settings, Archive, Shield,
-  ChevronRight, ChevronLeft, X, Wallet, ClipboardList
+  ChevronRight, ChevronLeft, X, Wallet, ClipboardList, Receipt
 } from 'lucide-react';
 
 const menuItems = [
@@ -15,6 +15,7 @@ const menuItems = [
   { path: '/attendance', icon: Clock, label: 'الحضور', labelEn: 'Attendance', page: 'attendance' },
   { path: '/requests', icon: ClipboardList, label: 'الطلبات', labelEn: 'Requests', page: 'requests' },
   { path: '/finances', icon: Wallet, label: 'المالية', labelEn: 'Finances', page: 'finances' },
+  { path: '/cash', icon: Receipt, label: 'الحركة اليومية', labelEn: 'Cash Movement', page: 'cash' },
   { path: '/permissions', icon: Shield, label: 'الصلاحيات', labelEn: 'Permissions', page: 'permissions' },
   { path: '/settings', icon: Settings, label: 'الإعدادات', labelEn: 'Settings', page: 'settings' },
   { path: '/archive', icon: Archive, label: 'الأرشيف', labelEn: 'Archive', page: 'archive' },

@@ -430,6 +430,13 @@ async function initCompanyDb(slug) {
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id)
           );
+          CREATE TABLE IF NOT EXISTS cash_transactions (
+            id TEXT PRIMARY KEY, type TEXT NOT NULL CHECK(type IN ('in','out')),
+            amount DOUBLE PRECISION NOT NULL, description TEXT,
+            reference_type TEXT, reference_id TEXT, category TEXT,
+            created_by TEXT, company_slug TEXT DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
         `);
 
         await d.exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
@@ -451,6 +458,7 @@ async function initCompanyDb(slug) {
         await d.exec(`ALTER TABLE task_comments ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
         await d.exec(`ALTER TABLE task_attachments ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
         await d.exec(`ALTER TABLE request_types ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE cash_transactions ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
 
         await d.prepare('UPDATE projects SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
         await d.prepare('UPDATE tasks SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
@@ -465,6 +473,7 @@ async function initCompanyDb(slug) {
         await d.prepare('UPDATE task_comments SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
         await d.prepare('UPDATE task_attachments SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
         await d.prepare('UPDATE request_types SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE cash_transactions SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
 
         const uc = await d.prepare('SELECT COUNT(*)::int as c FROM users').get();
         if (uc.c === 0) {
@@ -587,6 +596,13 @@ async function initCompanyDb(slug) {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id)
           );
+          CREATE TABLE IF NOT EXISTS cash_transactions (
+            id TEXT PRIMARY KEY, type TEXT NOT NULL CHECK(type IN ('in','out')),
+            amount REAL NOT NULL, description TEXT,
+            reference_type TEXT, reference_id TEXT, category TEXT,
+            created_by TEXT, company_slug TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
         `);
 
         try { db.exec("ALTER TABLE projects ADD COLUMN is_archived INTEGER DEFAULT 0"); } catch (e) {}
@@ -607,6 +623,7 @@ async function initCompanyDb(slug) {
         try { db.exec("ALTER TABLE payroll ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
         try { db.exec("ALTER TABLE invoices ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
         try { db.exec("ALTER TABLE notifications ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
+        try { db.exec("ALTER TABLE cash_transactions ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
 
         const usersCount = db.prepare('SELECT COUNT(*) as c FROM users').get();
         if (usersCount.c === 0) {

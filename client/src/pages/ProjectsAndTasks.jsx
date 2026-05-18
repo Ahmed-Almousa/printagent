@@ -10,6 +10,11 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const CANCELLABLE_STAGES = {
+  printing: ['draft', 'design_review'],
+  advertising: ['brief', 'concept_design', 'client_feedback'],
+};
+
 const EXECUTION_METHODS = [
   { value: 'internal', labelAr: 'داخلي', labelEn: 'Internal' },
   { value: 'external', labelAr: 'خارجي', labelEn: 'External' },
@@ -132,6 +137,10 @@ export default function ProjectsAndTasks() {
 
   const moveTask = async (task, newStage) => {
     try {
+      if (newStage === 'cancelled' && !CANCELLABLE_STAGES[activeCompany]?.includes(task.stage)) {
+        toast.error(t('لا يمكن إلغاء المهمة بعد مرحلة الإنتاج', 'Cannot cancel after production stage'));
+        return;
+      }
       if (isPrinting && newStage === 'production' && task.stage !== 'production' && user.role === 'employee') {
         toast.error(t('فقط المدير يمكنه الموافقة على الإنتاج', 'Only managers can approve production'));
         return;
@@ -350,7 +359,7 @@ export default function ProjectsAndTasks() {
                             ) : (
                               <button onClick={(e) => { e.stopPropagation(); moveTask(task, nextStage.key); }} className="flex-1 py-1 text-[10px] bg-gray-100 hover:bg-gray-200 rounded text-gray-500">{t(nextStage.labelAr, nextStage.labelEn)} →</button>
                             )}
-                            {stage.key !== 'delivered' && (
+                            {CANCELLABLE_STAGES[activeCompany]?.includes(stage.key) && (
                               <button onClick={(e) => { e.stopPropagation(); moveTask(task, 'cancelled'); }} className="py-1 px-2 text-[10px] bg-red-50 hover:bg-red-100 rounded text-red-500">✕</button>
                             )}
                           </>

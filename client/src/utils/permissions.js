@@ -51,10 +51,19 @@ export function canAccessPage(user, page) {
   if (page === 'archive') return hasPermission(user, 'archive.view');
   if (page === 'permissions') return hasPermission(user, 'settings.manage');
 
+  // Cash: same as finances
+  if (page === 'cash') {
+    return hasAnyPermission(user, [
+      'payroll.view_own', 'payroll.view_all', 'payroll.calculate', 'payroll.pay',
+      'finances.payroll_view_own', 'finances.payroll_view_all', 'finances.payroll_manage',
+      'finances.invoices_view', 'finances.invoices_create', 'finances.invoices_delete',
+      'finances.reports_view']);
+  }
+
   return false;
 }
 
-const ALL_PAGES = ['dashboard', 'projects', 'tasks', 'employees', 'attendance', 'requests', 'finances', 'settings', 'archive', 'permissions'];
+const ALL_PAGES = ['dashboard', 'projects', 'tasks', 'employees', 'attendance', 'requests', 'finances', 'cash', 'settings', 'archive', 'permissions'];
 
 export function getAccessiblePages(user) {
   if (!user) return [];

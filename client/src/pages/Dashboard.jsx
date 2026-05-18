@@ -36,13 +36,13 @@ export default function Dashboard() {
   }, [activeCompany]);
 
   const statCards = stats ? [
-    { icon: TrendingUp, label: t('إجمالي الإيرادات', 'Total Revenue'), value: `${stats.totalRevenue?.toLocaleString()}`, color: 'text-green-600', bg: 'bg-green-50', to: '/projects' },
-    { icon: FolderOpen, label: t('المشاريع النشطة', 'Active Projects'), value: stats.activeProjects, color: 'text-blue-600', bg: 'bg-blue-50', to: '/projects' },
-    { icon: ListChecks, label: t('المهام النشطة', 'Active Tasks'), value: stats.activeTasks, color: 'text-purple-600', bg: 'bg-purple-50', to: '/tasks' },
+    { icon: TrendingUp, label: t('إجمالي الإيرادات', 'Total Revenue'), value: `${stats.totalRevenue?.toLocaleString()}`, color: 'text-green-600', bg: 'bg-green-50', to: '/finances' },
+    { icon: FolderOpen, label: t('المشاريع النشطة', 'Active Projects'), value: stats.activeProjects, color: 'text-blue-600', bg: 'bg-blue-50', to: '/projects-tasks' },
+    { icon: ListChecks, label: t('المهام النشطة', 'Active Tasks'), value: stats.activeTasks, color: 'text-purple-600', bg: 'bg-purple-50', to: '/projects-tasks' },
     { icon: Users, label: t('الموظفون', 'Employees'), value: stats.employees, color: 'text-orange-600', bg: 'bg-orange-50', to: '/employees' },
     { icon: Clock, label: t('الحضور اليوم', "Today's Attendance"), value: stats.todayAttendance, color: 'text-cyan-600', bg: 'bg-cyan-50', to: '/attendance' },
-    { icon: CalendarCheck, label: t('طلبات الإجازة', 'Pending Leaves'), value: stats.pendingLeaves, color: 'text-yellow-600', bg: 'bg-yellow-50', to: '/leave' },
-    { icon: HandCoins, label: t('طلبات السلف', 'Pending Advances'), value: stats.pendingAdvances, color: 'text-red-600', bg: 'bg-red-50', to: '/advances' },
+    { icon: CalendarCheck, label: t('طلبات الإجازة', 'Pending Leaves'), value: stats.pendingLeaves, color: 'text-yellow-600', bg: 'bg-yellow-50', to: '/requests' },
+    { icon: HandCoins, label: t('طلبات السلف', 'Pending Advances'), value: stats.pendingAdvances, color: 'text-red-600', bg: 'bg-red-50', to: '/requests' },
   ] : [];
 
   const maxMonthly = stats?.monthlyTasks?.length ? Math.max(...stats.monthlyTasks.map(m => m.count), 1) : 1;

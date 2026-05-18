@@ -14,6 +14,7 @@ import Finances from './pages/Finances';
 import Settings from './pages/Settings';
 import Archive from './pages/Archive';
 import Permissions from './pages/Permissions';
+import CashMovement from './pages/CashMovement';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="settings" element={<ProtectedPage page="settings"><Settings /></ProtectedPage>} />
           <Route path="archive" element={<ProtectedPage page="archive"><Archive /></ProtectedPage>} />
           <Route path="permissions" element={<ProtectedPage page="permissions"><Permissions /></ProtectedPage>} />
+          <Route path="cash" element={<ProtectedPage page="cash"><CashMovement /></ProtectedPage>} />
         </Route>
       </Routes>
     </div>
