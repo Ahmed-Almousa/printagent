@@ -53,7 +53,7 @@ router.post('/:companySlug/calculate', authenticate, companyAccess, async (req, 
 router.put('/:companySlug/:id/pay', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
-  await db.prepare("UPDATE payroll SET status = 'paid', paid_at = NOW() WHERE id = ? AND company_slug = ?").run(req.params.id, req.params.companySlug);
+  await db.prepare("UPDATE payroll SET status = 'paid', paid_at = datetime('now') WHERE id = ? AND company_slug = ?").run(req.params.id, req.params.companySlug);
   const payroll = await db.prepare('SELECT p.*, u.full_name as user_name FROM payroll p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ? AND p.company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(payroll);
 });

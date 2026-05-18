@@ -34,7 +34,7 @@ router.put('/:companySlug/:id/review', authenticate, companyAccess, async (req, 
   const db = getCompanyDb(req.params.companySlug);
   const { status } = req.body;
   if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
-  await db.prepare("UPDATE leave_requests SET status = ?, reviewed_by = ?, reviewed_at = NOW() WHERE id = ? AND company_slug = ?")
+  await db.prepare("UPDATE leave_requests SET status = ?, reviewed_by = ?, reviewed_at = datetime('now') WHERE id = ? AND company_slug = ?")
     .run(status, req.user.id, req.params.id, req.params.companySlug);
   const leave = await db.prepare('SELECT l.*, u.full_name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ? AND l.company_slug = ?').get(req.params.id, req.params.companySlug);
   await db.prepare('INSERT INTO notifications (id, user_id, title, message, type, company_slug) VALUES (?,?,?,?,?,?)')

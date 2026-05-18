@@ -87,8 +87,8 @@ router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('
     await masterDb.prepare('INSERT INTO users (id, username, password, full_name, email, role, company_id, assigned_stages) VALUES (?,?,?,?,?,?,?,?)')
       .run(userId, username, hash, full_name || emp.full_name, email, 'employee', company.id, assigned_stages || emp.assigned_stages || null);
 
-    await db.prepare('INSERT OR IGNORE INTO users (id, username, full_name, email, role, assigned_stages, is_active) VALUES (?,?,?,?,?,?,?)')
-      .run(userId, username, full_name || emp.full_name, email, 'employee', assigned_stages || emp.assigned_stages || null, 1);
+    await db.prepare('INSERT OR IGNORE INTO users (id, username, full_name, email, role, assigned_stages, is_active, company_slug) VALUES (?,?,?,?,?,?,?,?)')
+      .run(userId, username, full_name || emp.full_name, email, 'employee', assigned_stages || emp.assigned_stages || null, 1, req.params.companySlug);
 
     await db.prepare('UPDATE employees SET user_id = ? WHERE id = ?').run(userId, req.params.id);
 
@@ -101,19 +101,19 @@ router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('
       }
       if (email !== undefined && email !== masterUser.email) {
         await masterDb.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, emp.user_id);
-        await db.prepare('UPDATE users SET email = ? WHERE id = ?').run(email, emp.user_id);
+        await db.prepare('UPDATE users SET email = ? WHERE id = ? AND company_slug = ?').run(email, emp.user_id, req.params.companySlug);
       }
       if (full_name !== undefined && full_name !== masterUser.full_name) {
         await masterDb.prepare('UPDATE users SET full_name = ? WHERE id = ?').run(full_name, emp.user_id);
-        await db.prepare('UPDATE users SET full_name = ? WHERE id = ?').run(full_name, emp.user_id);
+        await db.prepare('UPDATE users SET full_name = ? WHERE id = ? AND company_slug = ?').run(full_name, emp.user_id, req.params.companySlug);
       }
       if (is_active !== undefined) {
         await masterDb.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(is_active, emp.user_id);
-        await db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(is_active, emp.user_id);
+        await db.prepare('UPDATE users SET is_active = ? WHERE id = ? AND company_slug = ?').run(is_active, emp.user_id, req.params.companySlug);
       }
       if (assigned_stages !== undefined) {
         await masterDb.prepare('UPDATE users SET assigned_stages = ? WHERE id = ?').run(assigned_stages, emp.user_id);
-        await db.prepare('UPDATE users SET assigned_stages = ? WHERE id = ?').run(assigned_stages, emp.user_id);
+        await db.prepare('UPDATE users SET assigned_stages = ? WHERE id = ? AND company_slug = ?').run(assigned_stages, emp.user_id, req.params.companySlug);
       }
     }
   }
@@ -145,7 +145,7 @@ router.get('/:companySlug/performance', authenticate, companyAccess, async (req,
     const completedTasks = await db.prepare("SELECT COUNT(*) as c FROM tasks WHERE assignee_id = ? AND stage IN ('delivered','archived') AND company_slug = ?").get(emp.id, req.params.companySlug);
     const avgTime = await db.prepare(`
       SELECT AVG(
-        EXTRACT(EPOCH FROM COALESCE(completed_at, NOW()) - created_at) / 3600.0
+        (julianday(COALESCE(completed_at, datetime('now'))) - julianday(created_at)) * 24.0
       ) as avg_hours FROM tasks WHERE assignee_id = ? AND completed_at IS NOT NULL AND company_slug = ?
     `).get(emp.id, req.params.companySlug);
     performance.push({

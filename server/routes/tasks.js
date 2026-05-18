@@ -73,11 +73,11 @@ router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) =>
       if (req.user.role !== 'super_admin' && req.user.role !== 'manager') {
         return res.status(403).json({ error: 'Only managers can approve tasks for production' });
       }
-      await db.prepare("UPDATE tasks SET approved_by = ?, approved_at = NOW() WHERE id = ? AND company_slug = ?").run(req.user.id, req.params.id, req.params.companySlug);
+      await db.prepare("UPDATE tasks SET approved_by = ?, approved_at = datetime('now') WHERE id = ? AND company_slug = ?").run(req.user.id, req.params.id, req.params.companySlug);
     }
 
     if ((stage === 'done' || stage === 'completed' || stage === 'reporting' || stage === 'delivered') && task.stage !== stage) {
-      await db.prepare("UPDATE tasks SET completed_at = NOW() WHERE id = ? AND company_slug = ?").run(req.params.id, req.params.companySlug);
+      await db.prepare("UPDATE tasks SET completed_at = datetime('now') WHERE id = ? AND company_slug = ?").run(req.params.id, req.params.companySlug);
     }
   }
 
