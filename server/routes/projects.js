@@ -13,7 +13,7 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const params = [req.params.companySlug];
   if (status) { sql += ' AND p.status = ?'; params.push(status); }
   if (in_tasks === '0') sql += ' AND p.stage IS NULL';
-  else if (in_tasks === '1') sql += ' AND p.stage IS NOT NULL';
+  else if (in_tasks === '1') { sql += ' AND p.stage IS NOT NULL AND NOT EXISTS (SELECT 1 FROM tasks WHERE project_id = p.id AND company_slug = ?)'; params.push(req.params.companySlug); }
   sql += ' ORDER BY p.created_at DESC';
   const projects = await db.prepare(sql).all(...params);
   res.json(projects);

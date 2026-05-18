@@ -66,7 +66,7 @@ export default function TaskDetail() {
       setTask(data);
       setComments(data.comments || []);
       setAttachments(data.attachments || []);
-    }).catch(() => navigate('/tasks'));
+    }).catch(() => navigate('/projects-tasks'));
     api.get(`/users/${companySlug}`).then(({ data }) => setUsers(data)).catch(() => {});
   }, [companySlug, taskId]);
 

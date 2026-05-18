@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getCompanyDb } from '../config/database.js';
-import { authenticate, companyAccess } from '../middleware/auth.js';
+import { authenticate, companyAccess, requirePermission } from '../middleware/auth.js';
 import multer from 'multer';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -31,7 +31,7 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   res.json(tasks);
 });
 
-router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
+router.post('/:companySlug', authenticate, companyAccess, requirePermission('tasks.create'), async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { project_id, title, description, stage, assignee_id, priority, due_date } = req.body;
   const id = 'task_' + Date.now();
