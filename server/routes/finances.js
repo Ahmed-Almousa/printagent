@@ -7,11 +7,12 @@ const router = Router();
 router.get('/:companySlug/summary', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const year = req.query.year || new Date().getFullYear();
+  const slug = req.params.companySlug;
 
-  const totalRevenue = await db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM invoices WHERE type = 'sale' AND EXTRACT(YEAR FROM invoice_date) = ?").get(String(year));
-  const totalExpenses = await db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM invoices WHERE type = 'purchase' AND EXTRACT(YEAR FROM invoice_date) = ?").get(String(year));
-  const payrollTotal = await db.prepare("SELECT COALESCE(SUM(net_salary),0) as total FROM payroll WHERE EXTRACT(YEAR FROM created_at) = ? AND status = 'paid'").get(String(year));
-  const projectRevenue = await db.prepare("SELECT COALESCE(SUM(order_value),0) as total FROM projects WHERE EXTRACT(YEAR FROM created_at) = ?").get(String(year));
+  const totalRevenue = await db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM invoices WHERE type = 'sale' AND company_slug = ? AND strftime('%Y', invoice_date) = ?").get(slug, String(year));
+  const totalExpenses = await db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM invoices WHERE type = 'purchase' AND company_slug = ? AND strftime('%Y', invoice_date) = ?").get(slug, String(year));
+  const payrollTotal = await db.prepare("SELECT COALESCE(SUM(net_salary),0) as total FROM payroll WHERE company_slug = ? AND strftime('%Y', created_at) = ? AND status = 'paid'").get(slug, String(year));
+  const projectRevenue = await db.prepare("SELECT COALESCE(SUM(order_value),0) as total FROM projects WHERE company_slug = ? AND strftime('%Y', created_at) = ?").get(slug, String(year));
 
   res.json({
     totalRevenue: totalRevenue ? totalRevenue.total : 0,
@@ -25,12 +26,10 @@ router.get('/:companySlug/summary', authenticate, companyAccess, async (req, res
 router.get('/:companySlug/invoices', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { type, month, year } = req.query;
-  let sql = 'SELECT i.* FROM invoices i';
-  const conds = [];
-  const params = [];
-  if (type) { conds.push('i.type = ?'); params.push(type); }
-  if (month && year) { conds.push("EXTRACT(MONTH FROM i.invoice_date) = ? AND EXTRACT(YEAR FROM i.invoice_date) = ?"); params.push(String(month), String(year)); }
-  if (conds.length) sql += ' WHERE ' + conds.join(' AND ');
+  let sql = 'SELECT i.* FROM invoices i WHERE i.company_slug = ?';
+  const params = [req.params.companySlug];
+  if (type) { sql += ' AND i.type = ?'; params.push(type); }
+  if (month && year) { sql += " AND strftime('%m', i.invoice_date) = ? AND strftime('%Y', i.invoice_date) = ?"; params.push(String(month).padStart(2, '0'), String(year)); }
   sql += ' ORDER BY i.created_at DESC';
   const invoices = await db.prepare(sql).all(...params);
   res.json(invoices);
@@ -43,39 +42,40 @@ router.post('/:companySlug/invoices', authenticate, companyAccess, async (req, r
     return res.status(400).json({ error: 'type, vendor_client_name, and amount are required' });
   }
   const id = 'inv_' + Date.now();
-  await db.prepare('INSERT INTO invoices (id, type, invoice_number, vendor_client_name, amount, description, invoice_date, created_by) VALUES (?,?,?,?,?,?,?,?)')
-    .run(id, type, invoice_number || null, vendor_client_name, amount, description || null, invoice_date || null, req.user.id);
-  const invoice = await db.prepare('SELECT * FROM invoices WHERE id = ?').get(id);
+  await db.prepare('INSERT INTO invoices (id, type, invoice_number, vendor_client_name, amount, description, invoice_date, created_by, company_slug) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(id, type, invoice_number || null, vendor_client_name, amount, description || null, invoice_date || null, req.user.id, req.params.companySlug);
+  const invoice = await db.prepare('SELECT * FROM invoices WHERE id = ? AND company_slug = ?').get(id, req.params.companySlug);
   res.json(invoice);
 });
 
 router.delete('/:companySlug/invoices/:id', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
-  await db.prepare('DELETE FROM invoices WHERE id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM invoices WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
   res.json({ success: true });
 });
 
 router.get('/:companySlug/reports', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const year = req.query.year || new Date().getFullYear();
+  const slug = req.params.companySlug;
 
   const monthlyReports = await db.prepare(`
     SELECT
-      CAST(EXTRACT(MONTH FROM i.invoice_date) AS INTEGER) as month,
+      CAST(strftime('%m', i.invoice_date) AS INTEGER) as month,
       SUM(CASE WHEN i.type = 'sale' THEN i.amount ELSE 0 END) as income,
       SUM(CASE WHEN i.type = 'purchase' THEN i.amount ELSE 0 END) as expenses
     FROM invoices i
-    WHERE EXTRACT(YEAR FROM i.invoice_date) = ?
+    WHERE i.company_slug = ? AND strftime('%Y', i.invoice_date) = ?
     GROUP BY month ORDER BY month
-  `).all(String(year));
+  `).all(slug, String(year));
 
   const monthlyPayroll = await db.prepare(`
-    SELECT CAST(EXTRACT(MONTH FROM created_at) AS INTEGER) as month,
+    SELECT CAST(strftime('%m', created_at) AS INTEGER) as month,
       COALESCE(SUM(net_salary),0) as payroll
     FROM payroll
-    WHERE EXTRACT(YEAR FROM created_at) = ? AND status = 'paid'
+    WHERE company_slug = ? AND strftime('%Y', created_at) = ? AND status = 'paid'
     GROUP BY month ORDER BY month
-  `).all(String(year));
+  `).all(slug, String(year));
 
   const result = [];
   for (let m = 1; m <= 12; m++) {

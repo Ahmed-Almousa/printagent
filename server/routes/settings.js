@@ -53,7 +53,7 @@ router.put('/:companySlug/currency-rate', authenticate, companyAccess, async (re
 
 router.get('/:companySlug/request-types', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
-  const types = await db.prepare('SELECT * FROM request_types ORDER BY name ASC').all();
+  const types = await db.prepare('SELECT * FROM request_types WHERE company_slug = ? ORDER BY name ASC').all(req.params.companySlug);
   res.json(types);
 });
 
@@ -63,8 +63,8 @@ router.post('/:companySlug/request-types', authenticate, companyAccess, async (r
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
   const id = 'rt_' + Date.now();
-  await db.prepare('INSERT INTO request_types (id, name) VALUES (?,?)').run(id, name);
-  const type = await db.prepare('SELECT * FROM request_types WHERE id = ?').get(id);
+  await db.prepare('INSERT INTO request_types (id, name, company_slug) VALUES (?,?,?)').run(id, name, req.params.companySlug);
+  const type = await db.prepare('SELECT * FROM request_types WHERE id = ? AND company_slug = ?').get(id, req.params.companySlug);
   res.json(type);
 });
 
@@ -73,15 +73,15 @@ router.put('/:companySlug/request-types/:id', authenticate, companyAccess, async
   const db = getCompanyDb(req.params.companySlug);
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
-  await db.prepare('UPDATE request_types SET name = ? WHERE id = ?').run(name, req.params.id);
-  const type = await db.prepare('SELECT * FROM request_types WHERE id = ?').get(req.params.id);
+  await db.prepare('UPDATE request_types SET name = ? WHERE id = ? AND company_slug = ?').run(name, req.params.id, req.params.companySlug);
+  const type = await db.prepare('SELECT * FROM request_types WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(type);
 });
 
 router.delete('/:companySlug/request-types/:id', authenticate, companyAccess, async (req, res) => {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
-  await db.prepare('DELETE FROM request_types WHERE id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM request_types WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
   res.json({ success: true });
 });
 

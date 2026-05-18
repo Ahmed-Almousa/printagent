@@ -9,8 +9,8 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
   const { all } = req.query;
   const employees = all
-    ? await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id ORDER BY e.full_name').all()
-    : await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.is_active = 1 ORDER BY e.full_name').all();
+    ? await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.company_slug = ? ORDER BY e.full_name').all(req.params.companySlug)
+    : await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.company_slug = ? AND e.is_active = 1 ORDER BY e.full_name').all(req.params.companySlug);
   res.json(employees);
 });
 
@@ -35,32 +35,32 @@ router.post('/:companySlug', authenticate, companyAccess, requirePermission('emp
     await masterDb.prepare('INSERT INTO users (id, username, password, full_name, email, role, company_id, assigned_stages) VALUES (?,?,?,?,?,?,?,?)')
       .run(userId, username, hash, full_name, email, role || 'employee', company.id, assigned_stages || null);
 
-    await db.prepare('INSERT OR IGNORE INTO users (id, username, full_name, email, role, assigned_stages, is_active) VALUES (?,?,?,?,?,?,?)')
-      .run(userId, username, full_name, email, role || 'employee', assigned_stages || null, 1);
+    await db.prepare('INSERT OR IGNORE INTO users (id, username, full_name, email, role, assigned_stages, is_active, company_slug) VALUES (?,?,?,?,?,?,?,?)')
+      .run(userId, username, full_name, email, role || 'employee', assigned_stages || null, 1, req.params.companySlug);
 
-    await db.prepare('INSERT INTO employees (id, user_id, full_name, email, phone, position, base_salary, assigned_stages) VALUES (?,?,?,?,?,?,?,?)')
-      .run(id, userId, full_name, email, phone, position, base_salary || 0, assigned_stages || null);
+    await db.prepare('INSERT INTO employees (id, user_id, full_name, email, phone, position, base_salary, assigned_stages, company_slug) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(id, userId, full_name, email, phone, position, base_salary || 0, assigned_stages || null, req.params.companySlug);
 
-    const emp = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ?').get(id);
+    const emp = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ? AND e.company_slug = ?').get(id, req.params.companySlug);
     return res.json(emp);
   }
 
   if (user_id) {
-    await db.prepare('INSERT INTO employees (id, user_id, full_name, email, phone, position, base_salary, assigned_stages) VALUES (?,?,?,?,?,?,?,?)')
-      .run(id, user_id, full_name, email, phone, position, base_salary || 0, assigned_stages || null);
+    await db.prepare('INSERT INTO employees (id, user_id, full_name, email, phone, position, base_salary, assigned_stages, company_slug) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(id, user_id, full_name, email, phone, position, base_salary || 0, assigned_stages || null, req.params.companySlug);
   } else {
-    await db.prepare('INSERT INTO employees (id, full_name, email, phone, position, base_salary, assigned_stages) VALUES (?,?,?,?,?,?,?)')
-      .run(id, full_name, email, phone, position, base_salary || 0, assigned_stages || null);
+    await db.prepare('INSERT INTO employees (id, full_name, email, phone, position, base_salary, assigned_stages, company_slug) VALUES (?,?,?,?,?,?,?,?)')
+      .run(id, full_name, email, phone, position, base_salary || 0, assigned_stages || null, req.params.companySlug);
   }
 
-  const emp = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ?').get(id);
+  const emp = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ? AND e.company_slug = ?').get(id, req.params.companySlug);
   res.json(emp);
 });
 
 router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('employees.edit'), async (req, res) => {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
-  const emp = await db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params.id);
+  const emp = await db.prepare('SELECT * FROM employees WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
   if (!emp) return res.status(404).json({ error: 'Employee not found' });
 
   const { full_name, email, phone, position, base_salary, assigned_stages, is_active, username, password } = req.body;
@@ -69,8 +69,8 @@ router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('
     full_name=COALESCE(?,full_name), email=COALESCE(?,email),
     phone=COALESCE(?,phone), position=COALESCE(?,position),
     base_salary=COALESCE(?,base_salary), assigned_stages=COALESCE(?,assigned_stages),
-    is_active=COALESCE(?,is_active) WHERE id=?`)
-    .run(full_name, email, phone, position, base_salary, assigned_stages, is_active, req.params.id);
+    is_active=COALESCE(?,is_active) WHERE id=? AND company_slug=?`)
+    .run(full_name, email, phone, position, base_salary, assigned_stages, is_active, req.params.id, req.params.companySlug);
 
   if (!emp.user_id && username && password) {
     if (!email || !email.includes('@')) {
@@ -118,36 +118,36 @@ router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('
     }
   }
 
-  const updated = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ?').get(req.params.id);
+  const updated = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ? AND e.company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(updated);
 });
 
 router.delete('/:companySlug/:id', authenticate, companyAccess, requirePermission('employees.delete'), async (req, res) => {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
-  const emp = await db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params.id);
+  const emp = await db.prepare('SELECT * FROM employees WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
   if (!emp) return res.status(404).json({ error: 'Employee not found' });
 
   if (emp.user_id) {
     await masterDb.prepare('DELETE FROM users WHERE id = ?').run(emp.user_id);
-    await db.prepare('DELETE FROM users WHERE id = ?').run(emp.user_id);
+    await db.prepare('DELETE FROM users WHERE id = ? AND company_slug = ?').run(emp.user_id, req.params.companySlug);
   }
-  await db.prepare('DELETE FROM attendance WHERE user_id = ?').run(emp.user_id || emp.id);
-  await db.prepare('DELETE FROM employees WHERE id = ?').run(req.params.id);
+  await db.prepare('DELETE FROM attendance WHERE user_id = ? AND company_slug = ?').run(emp.user_id || emp.id, req.params.companySlug);
+  await db.prepare('DELETE FROM employees WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
   res.json({ success: true });
 });
 
 router.get('/:companySlug/performance', authenticate, companyAccess, async (req, res) => {
   const db = getCompanyDb(req.params.companySlug);
-  const employees = await db.prepare('SELECT id, full_name, position FROM employees WHERE is_active = 1').all();
+  const employees = await db.prepare('SELECT id, full_name, position FROM employees WHERE is_active = 1 AND company_slug = ?').all(req.params.companySlug);
   const performance = [];
   for (const emp of employees) {
-    const completedTasks = await db.prepare("SELECT COUNT(*) as c FROM tasks WHERE assignee_id = ? AND stage IN ('delivered','archived')").get(emp.id);
+    const completedTasks = await db.prepare("SELECT COUNT(*) as c FROM tasks WHERE assignee_id = ? AND stage IN ('delivered','archived') AND company_slug = ?").get(emp.id, req.params.companySlug);
     const avgTime = await db.prepare(`
       SELECT AVG(
         EXTRACT(EPOCH FROM COALESCE(completed_at, NOW()) - created_at) / 3600.0
-      ) as avg_hours FROM tasks WHERE assignee_id = ? AND completed_at IS NOT NULL
-    `).get(emp.id);
+      ) as avg_hours FROM tasks WHERE assignee_id = ? AND completed_at IS NOT NULL AND company_slug = ?
+    `).get(emp.id, req.params.companySlug);
     performance.push({
       ...emp,
       completedTasks: completedTasks.c,

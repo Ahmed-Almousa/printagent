@@ -130,17 +130,13 @@ export default function ProjectsAndTasks() {
     } catch (err) { toast.error(err.response?.data?.error || t('حدث خطأ', 'Error')); }
   };
 
-  const moveItem = async (item, newStage) => {
+  const moveTask = async (task, newStage) => {
     try {
-      if (item.is_project) {
-        await api.put(`/projects/${activeCompany}/${item.id}`, { stage: newStage });
-      } else {
-        if (isPrinting && newStage === 'production' && item.stage !== 'production' && user.role === 'employee') {
-          toast.error(t('فقط المدير يمكنه الموافقة على الإنتاج', 'Only managers can approve production'));
-          return;
-        }
-        await api.put(`/tasks/${activeCompany}/${item.id}`, { stage: newStage });
+      if (isPrinting && newStage === 'production' && task.stage !== 'production' && user.role === 'employee') {
+        toast.error(t('فقط المدير يمكنه الموافقة على الإنتاج', 'Only managers can approve production'));
+        return;
       }
+      await api.put(`/tasks/${activeCompany}/${task.id}`, { stage: newStage });
       loadAll();
     } catch (err) { toast.error(err.response?.data?.error || t('حدث خطأ', 'Error')); }
   };
@@ -256,11 +252,7 @@ export default function ProjectsAndTasks() {
         <div className="flex gap-2">
           <select className="select w-40 text-sm" value={selectedProject} onChange={(e) => setSelectedProject(e.target.value)}>
             <option value="">{t('كل المشاريع', 'All Projects')}</option>
-            {(() => {
-              const allProjs = [...projects, ...projectsInTasks];
-              const seen = new Set();
-              return allProjs.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
-            })().map(p => (
+            {projectsInTasks.map(p => (
               <option key={p.id} value={p.id}>{p.title}</option>
             ))}
           </select>
@@ -274,39 +266,25 @@ export default function ProjectsAndTasks() {
 
       <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: '50vh' }}>
         {stages.map((stage) => {
-          const items = groupedTasks[stage.key] || [];
+          const stageTasks = tasks.filter(t => t.stage === stage.key);
           return (
             <div key={stage.key} className={`kanban-column border-t-4 ${stage.color} flex-shrink-0`} style={{ width: '260px' }}>
               <div className="flex items-center justify-between mb-3 px-1">
                 <h3 className="text-sm font-semibold text-gray-700">{t(stage.labelAr, stage.labelEn)}</h3>
-                <span className="badge bg-gray-200 text-gray-600">{items.length}</span>
+                <span className="badge bg-gray-200 text-gray-600">{stageTasks.length}</span>
               </div>
               <div className="space-y-2 min-h-[80px]">
-                {items.map(item => (
-                  <div key={item.id} className={`kanban-card group cursor-pointer ${item.is_project ? 'border-r-2 border-r-primary-400 bg-primary-50/20' : ''}`}
-                    onClick={() => item.is_project ? null : navigate(`/tasks/${activeCompany}/${item.id}`)}>
-                    {item.is_project ? (
-                      <>
-                        <div className="flex items-center gap-1 mb-1">
-                          <FolderKanban size="11" className="text-primary-600" />
-                          <span className="text-[10px] font-semibold text-primary-600">{t('مشروع', 'Project')}</span>
-                        </div>
-                        <h4 className="text-sm font-medium text-gray-800 mb-1">{item.title}</h4>
-                        {item.client_name && <p className="text-[11px] text-gray-500">{item.client_name}</p>}
-                        {item.request_type_name && <span className="text-[10px] px-1 py-0.5 bg-indigo-100 text-indigo-700 rounded inline-block mt-1">{item.request_type_name}</span>}
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-start justify-between mb-2">
-                          <span className={`badge text-[10px] ${priorityColor(item.priority)}`}>{item.priority}</span>
-                        </div>
-                        <h4 className="text-sm font-medium text-gray-800 mb-2">{item.title}</h4>
-                        <div className="flex items-center justify-between text-xs text-gray-400">
-                          <span>{item.assignee_name && <><User size="11" className="inline" /> {item.assignee_name}</>}</span>
-                          <span>{item.due_date || '-'}</span>
-                        </div>
-                      </>
-                    )}
+                {stageTasks.map(task => (
+                  <div key={task.id} className="kanban-card group cursor-pointer"
+                    onClick={() => navigate(`/tasks/${activeCompany}/${task.id}`)}>
+                    <div className="flex items-start justify-between mb-2">
+                      <span className={`badge text-[10px] ${priorityColor(task.priority)}`}>{task.priority}</span>
+                    </div>
+                    <h4 className="text-sm font-medium text-gray-800 mb-2">{task.title}</h4>
+                    <div className="flex items-center justify-between text-xs text-gray-400">
+                      <span>{task.assignee_name && <><User size="11" className="inline" /> {task.assignee_name}</>}</span>
+                      <span>{task.due_date || '-'}</span>
+                    </div>
                     <div className="flex gap-1 mt-2 pt-1 border-t border-gray-100">
                       {(() => {
                         const nextIdx = stages.indexOf(stage) + 1;
@@ -314,12 +292,12 @@ export default function ProjectsAndTasks() {
                         return (
                           <>
                             {stage.key === 'delivered' ? (
-                              <button onClick={(e) => { e.stopPropagation(); moveItem(item, 'archived'); }} className="flex-1 py-1 text-[10px] bg-orange-100 hover:bg-orange-200 rounded text-orange-600"><Archive size="10" className="inline" /> {t('أرشفة', 'Archive')}</button>
+                              <button onClick={(e) => { e.stopPropagation(); moveTask(task, 'archived'); }} className="flex-1 py-1 text-[10px] bg-orange-100 hover:bg-orange-200 rounded text-orange-600"><Archive size="10" className="inline" /> {t('أرشفة', 'Archive')}</button>
                             ) : (
-                              <button onClick={(e) => { e.stopPropagation(); moveItem(item, stages[nextIdx].key); }} className="flex-1 py-1 text-[10px] bg-gray-100 hover:bg-gray-200 rounded text-gray-500">{t('نقل', 'Move')} →</button>
+                              <button onClick={(e) => { e.stopPropagation(); moveTask(task, stages[nextIdx].key); }} className="flex-1 py-1 text-[10px] bg-gray-100 hover:bg-gray-200 rounded text-gray-500">{t('نقل', 'Move')} →</button>
                             )}
                             {stage.key !== 'delivered' && (
-                              <button onClick={(e) => { e.stopPropagation(); moveItem(item, 'cancelled'); }} className="py-1 px-2 text-[10px] bg-red-50 hover:bg-red-100 rounded text-red-500">✕</button>
+                              <button onClick={(e) => { e.stopPropagation(); moveTask(task, 'cancelled'); }} className="py-1 px-2 text-[10px] bg-red-50 hover:bg-red-100 rounded text-red-500">✕</button>
                             )}
                           </>
                         );
@@ -380,7 +358,7 @@ export default function ProjectsAndTasks() {
               <div><label className="label">{t('المشروع', 'Project')}</label>
                 <select className="select" value={taskForm.project_id} onChange={(e) => setTaskForm({...taskForm, project_id: e.target.value})} required>
                   <option value="">{t('اختر مشروعاً', 'Select project')}</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
+                  {projectsInTasks.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}
                 </select>
               </div>
               <div><label className="label">{t('العنوان', 'Title')}</label><input className="input" value={taskForm.title} onChange={(e) => setTaskForm({...taskForm, title: e.target.value})} required /></div>

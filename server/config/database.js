@@ -337,12 +337,14 @@ async function initCompanyDb(slug) {
         await d.exec(`
           CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY, username TEXT, full_name TEXT NOT NULL, email TEXT,
-            role TEXT, assigned_stages TEXT, is_active INTEGER DEFAULT 1
+            role TEXT, assigned_stages TEXT, is_active INTEGER DEFAULT 1,
+            company_slug TEXT DEFAULT ''
           );
           CREATE TABLE IF NOT EXISTS employees (
             id TEXT PRIMARY KEY, user_id TEXT UNIQUE, full_name TEXT NOT NULL, email TEXT,
             phone TEXT, position TEXT, base_salary DOUBLE PRECISION DEFAULT 0,
             hire_date TEXT, is_active INTEGER DEFAULT 1, assigned_stages TEXT,
+            company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
           CREATE TABLE IF NOT EXISTS projects (
@@ -351,11 +353,13 @@ async function initCompanyDb(slug) {
             request_date TEXT, request_type_id TEXT,
             execution_method TEXT DEFAULT 'internal' CHECK(execution_method IN ('internal','external','shared')),
             is_archived INTEGER DEFAULT 0, archive_reason TEXT, stage TEXT,
+            company_slug TEXT DEFAULT '',
             created_by TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(created_by) REFERENCES users(id)
           );
           CREATE TABLE IF NOT EXISTS request_types (
-            id TEXT PRIMARY KEY, name TEXT NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, company_slug TEXT DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
           CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY, project_id TEXT NOT NULL, title TEXT NOT NULL, description TEXT,
@@ -363,24 +367,27 @@ async function initCompanyDb(slug) {
             due_date TEXT, is_outsourced INTEGER DEFAULT 0, outsourced_vendor TEXT,
             outsourced_cost DOUBLE PRECISION DEFAULT 0, outsourced_delivery_status TEXT DEFAULT 'pending',
             approved_by TEXT, approved_at TEXT, completed_at TEXT, created_by TEXT,
+            company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(project_id) REFERENCES projects(id), FOREIGN KEY(assignee_id) REFERENCES users(id), FOREIGN KEY(approved_by) REFERENCES users(id)
           );
           CREATE TABLE IF NOT EXISTS task_comments (
             id TEXT PRIMARY KEY, task_id TEXT NOT NULL, user_id TEXT NOT NULL,
-            message TEXT NOT NULL, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            message TEXT NOT NULL, company_slug TEXT DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(task_id) REFERENCES tasks(id), FOREIGN KEY(user_id) REFERENCES users(id)
           );
           CREATE TABLE IF NOT EXISTS task_attachments (
             id TEXT PRIMARY KEY, task_id TEXT NOT NULL, file_name TEXT NOT NULL,
-            file_path TEXT NOT NULL, uploaded_by TEXT,
+            file_path TEXT NOT NULL, uploaded_by TEXT, company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(task_id) REFERENCES tasks(id)
           );
           CREATE TABLE IF NOT EXISTS attendance (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, date TEXT NOT NULL,
             clock_in TEXT, clock_out TEXT, location_lat DOUBLE PRECISION, location_lng DOUBLE PRECISION,
-            status TEXT DEFAULT 'present', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            status TEXT DEFAULT 'present', company_slug TEXT DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id)
           );
           CREATE TABLE IF NOT EXISTS leave_requests (
@@ -388,7 +395,7 @@ async function initCompanyDb(slug) {
             type TEXT NOT NULL CHECK(type IN ('annual','sick','personal')),
             start_date TEXT NOT NULL, end_date TEXT NOT NULL, reason TEXT NOT NULL,
             status TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
-            reviewed_by TEXT, reviewed_at TEXT,
+            reviewed_by TEXT, reviewed_at TEXT, company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id), FOREIGN KEY(reviewed_by) REFERENCES users(id)
           );
@@ -396,7 +403,7 @@ async function initCompanyDb(slug) {
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL,
             reason TEXT NOT NULL, repayment_terms TEXT,
             status TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','paid')),
-            reviewed_by TEXT, reviewed_at TEXT,
+            reviewed_by TEXT, reviewed_at TEXT, company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id), FOREIGN KEY(reviewed_by) REFERENCES users(id)
           );
@@ -406,18 +413,20 @@ async function initCompanyDb(slug) {
             advances_deducted DOUBLE PRECISION DEFAULT 0, late_penalties DOUBLE PRECISION DEFAULT 0,
             net_salary DOUBLE PRECISION NOT NULL,
             status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','cancelled')),
-            paid_at TEXT, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            paid_at TEXT, company_slug TEXT DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id)
           );
           CREATE TABLE IF NOT EXISTS invoices (
             id TEXT PRIMARY KEY, type TEXT NOT NULL CHECK(type IN ('sale','purchase')),
             invoice_number TEXT, vendor_client_name TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL,
             description TEXT, invoice_date TEXT, created_by TEXT,
+            company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
           CREATE TABLE IF NOT EXISTS notifications (
             id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, message TEXT,
-            type TEXT DEFAULT 'info', is_read INTEGER DEFAULT 0,
+            type TEXT DEFAULT 'info', is_read INTEGER DEFAULT 0, company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(id)
           );
@@ -429,14 +438,42 @@ async function initCompanyDb(slug) {
         await d.exec("ALTER TABLE employees ADD COLUMN IF NOT EXISTS assigned_stages TEXT");
         await d.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS assigned_stages TEXT");
 
+        await d.exec(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE attendance ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE leave_requests ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE salary_advances ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE task_comments ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE task_attachments ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec(`ALTER TABLE request_types ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+
+        await d.prepare('UPDATE projects SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE tasks SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE employees SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE users SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE attendance SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE leave_requests SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE salary_advances SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE payroll SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE invoices SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE notifications SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE task_comments SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE task_attachments SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+        await d.prepare('UPDATE request_types SET company_slug = $1 WHERE company_slug = \'\'').run(slug);
+
         const uc = await d.prepare('SELECT COUNT(*)::int as c FROM users').get();
         if (uc.c === 0) {
           const company = await _masterDb.prepare('SELECT * FROM companies WHERE slug = $1').get(slug);
           if (company) {
             const users = await _masterDb.prepare('SELECT id, username, full_name, email, role, is_active FROM users WHERE company_id = $1 OR role = \'super_admin\'').all(company.id);
             for (const u of users)
-              await d.prepare('INSERT INTO users (id, username, full_name, email, role, is_active) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING')
-                .run(u.id, u.username, u.full_name, u.email, u.role, u.is_active);
+              await d.prepare('INSERT INTO users (id, username, full_name, email, role, is_active, company_slug) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT DO NOTHING')
+                .run(u.id, u.username, u.full_name, u.email, u.role, u.is_active, slug);
           }
         }
 
@@ -444,7 +481,7 @@ async function initCompanyDb(slug) {
         if (tc.c === 0) {
           const types = ['ورقيات', 'فلكس', 'أختام', 'بنرات', 'بروشورات', 'كتب', 'مجلات', 'ملصقات', 'بطاقات', 'مطويات', 'لوحات إعلانية', 'تصميم جرافيك', 'تغليف', 'هدايا دعائية', 'أخرى'];
           for (let i = 0; i < types.length; i++)
-            await d.prepare('INSERT INTO request_types (id, name) VALUES ($1,$2)').run('rt_' + i, types[i]);
+            await d.prepare('INSERT INTO request_types (id, name, company_slug) VALUES ($1,$2,$3)').run('rt_' + i, types[i], slug);
         }
 
         return d;
