@@ -190,7 +190,7 @@ export default function CashMovement() {
                   : 'border-gray-200 text-gray-500 hover:border-gray-300'
               }`}
             >
-              <Building2 size={16} className="inline mr-1" /> {t(ct.labelAr, ct.labelEn)}
+              <Building2 size={16} className="inline ms-1" /> {t(ct.labelAr, ct.labelEn)}
             </button>
           ))}
         </div>
@@ -275,7 +275,7 @@ export default function CashMovement() {
                           <td className="px-4 py-2.5 text-gray-500">{idx + 1}</td>
                           <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
                             {format(new Date(tx.created_at), 'HH:mm:ss')}
-                            <span className="text-gray-400 text-xs mr-1">{format(new Date(tx.created_at), 'dd/MM')}</span>
+                            <span className="text-gray-400 text-xs ms-1">{format(new Date(tx.created_at), 'dd/MM')}</span>
                           </td>
                           <td className="px-4 py-2.5">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
@@ -311,7 +311,7 @@ export default function CashMovement() {
                           <td className="px-4 py-2.5 text-gray-500">{idx + 1}</td>
                           <td className="px-4 py-2.5 text-gray-700 whitespace-nowrap">
                             {format(new Date(tx.created_at), 'HH:mm:ss')}
-                            <span className="text-gray-400 text-xs mr-1">{format(new Date(tx.created_at), 'dd/MM')}</span>
+                            <span className="text-gray-400 text-xs ms-1">{format(new Date(tx.created_at), 'dd/MM')}</span>
                           </td>
                           <td className="px-4 py-2.5">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
@@ -372,12 +372,12 @@ export default function CashMovement() {
                   className={`flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
                     txType === 'in' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-500'
                   }`}
-                ><ArrowDownCircle size="16" className="inline mr-1" /> {t('قبض', 'Cash In')}</button>
+                ><ArrowDownCircle size="16" className="inline ms-1" /> {t('قبض', 'Cash In')}</button>
                 <button type="button" onClick={() => setTxType('out')}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
                     txType === 'out' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 text-gray-500'
                   }`}
-                ><ArrowUpCircle size="16" className="inline mr-1" /> {t('صرف', 'Cash Out')}</button>
+                ><ArrowUpCircle size="16" className="inline ms-1" /> {t('صرف', 'Cash Out')}</button>
               </div>
 
               <div>

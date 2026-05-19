@@ -6,6 +6,7 @@ import { generateToken, authenticate } from '../middleware/auth.js';
 const router = Router();
 
 router.post('/login', async (req, res) => {
+  try {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
@@ -28,9 +29,11 @@ router.post('/login', async (req, res) => {
   const token = generateToken(user);
   const { password: _, ...safeUser } = user;
   res.json({ token, user: { ...safeUser }, company: companyInfo });
+  } catch (err) { console.error('auth error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/me', authenticate, async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   const user = await masterDb.prepare('SELECT id, username, full_name, email, role, company_id, assigned_stages, phone, avatar, permissions FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -46,9 +49,11 @@ router.get('/me', authenticate, async (req, res) => {
     }
   }
   res.json({ user, company: companyInfo });
+  } catch (err) { console.error('auth error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/companies', authenticate, async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   if (req.user.role !== 'super_admin') {
     const company = await masterDb.prepare('SELECT * FROM companies WHERE id = ?').get(req.user.company_id);
@@ -56,9 +61,11 @@ router.get('/companies', authenticate, async (req, res) => {
   }
   const companies = await masterDb.prepare('SELECT * FROM companies').all();
   res.json(companies);
+  } catch (err) { console.error('auth error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/companies/:slug/stats', authenticate, async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   const company = await masterDb.prepare('SELECT * FROM companies WHERE slug = ?').get(req.params.slug);
   if (!company) return res.status(404).json({ error: 'Company not found' });
@@ -68,7 +75,9 @@ router.get('/companies/:slug/stats', authenticate, async (req, res) => {
   const db = getCompanyDb(company.slug);
 
   const activeProjects = await db.prepare("SELECT COUNT(*) as c FROM projects WHERE status = 'active'").get();
-  const totalRevenue = await db.prepare('SELECT COALESCE(SUM(order_value),0) as total FROM projects').get();
+  const projectValue = await db.prepare('SELECT COALESCE(SUM(order_value),0) as total FROM projects').get();
+  const cashInflow = await db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM cash_transactions WHERE type='in'").get();
+  const totalRevenue = { total: (projectValue?.total || 0) + (cashInflow?.total || 0) };
   const activeTasks = await db.prepare("SELECT COUNT(*) as c FROM tasks WHERE stage NOT IN ('done','completed','delivered','cancelled','archived')").get();
   const employeesCount = await db.prepare('SELECT COUNT(*) as c FROM employees WHERE is_active = 1').get();
   const todayCheckins = await db.prepare("SELECT COUNT(*) as c FROM attendance WHERE date = CURRENT_DATE").get();
@@ -108,9 +117,11 @@ router.get('/companies/:slug/stats', authenticate, async (req, res) => {
     stageDistribution,
     attendanceData
   });
+  } catch (err) { console.error('auth error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/profile', authenticate, async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   const { full_name, email, phone } = req.body;
   await masterDb.prepare('UPDATE users SET full_name = COALESCE(?,full_name), email = COALESCE(?,email), phone = COALESCE(?,phone) WHERE id = ?')
@@ -125,9 +136,11 @@ router.put('/profile', authenticate, async (req, res) => {
   }
   const user = await masterDb.prepare('SELECT id, username, full_name, email, role, company_id, assigned_stages, phone, avatar, permissions FROM users WHERE id = ?').get(req.user.id);
   res.json({ user });
+  } catch (err) { console.error('auth error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/password', authenticate, async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   const { current_password, new_password } = req.body;
   if (!current_password || !new_password) {
@@ -143,6 +156,7 @@ router.put('/password', authenticate, async (req, res) => {
   const hash = bcrypt.hashSync(new_password, 10);
   await masterDb.prepare('UPDATE users SET password = ? WHERE id = ?').run(hash, req.user.id);
   res.json({ success: true });
+  } catch (err) { console.error('auth error:', err); res.status(500).json({ error: err.message }); }
 });
 
 export default router;

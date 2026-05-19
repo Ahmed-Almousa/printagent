@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useCompany } from '../contexts/CompanyContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Building2, Plus, Trash2 } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Building2, Plus, Trash2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 
 const COMPANY_TABS = [
   { slug: 'printing', labelAr: 'المطبعة', labelEn: 'Printing', color: 'border-blue-500 text-blue-700 bg-blue-50' },
@@ -43,6 +43,8 @@ export default function Finances() {
           totalExpenses: (p?.totalExpenses || 0) + (a?.totalExpenses || 0),
           payrollTotal: (p?.payrollTotal || 0) + (a?.payrollTotal || 0),
           projectRevenue: (p?.projectRevenue || 0) + (a?.projectRevenue || 0),
+          cashIn: (p?.cashIn || 0) + (a?.cashIn || 0),
+          cashOut: (p?.cashOut || 0) + (a?.cashOut || 0),
           netBalance: (p?.netBalance || 0) + (a?.netBalance || 0),
         });
       }).catch(() => setSummary(null));
@@ -78,7 +80,7 @@ export default function Finances() {
                 : 'border-gray-200 text-gray-500 hover:border-gray-300'
             }`}
           >
-            <Building2 size="16" className="inline ml-1" />
+            <Building2 size="16" className="inline me-1" />
             {t(ct.labelAr, ct.labelEn)}
           </button>
         ))}
@@ -86,27 +88,41 @@ export default function Finances() {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="card">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"><TrendingUp size="18" /></div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{summary.totalRevenue?.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">{t('إجمالي الإيرادات', 'Total Revenue')}</p>
+            <p className="text-sm text-gray-500">{t('إيرادات الفواتير', 'Invoice Revenue')}</p>
           </div>
           <div className="card">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center"><TrendingDown size="18" /></div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{summary.totalExpenses?.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">{t('إجمالي المصاريف', 'Total Expenses')}</p>
+            <p className="text-sm text-gray-500">{t('مصاريف الفواتير', 'Invoice Expenses')}</p>
+          </div>
+          <div className="card">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><ArrowDownCircle size="18" /></div>
+            </div>
+            <p className="text-2xl font-bold text-emerald-700">{summary.cashIn?.toLocaleString()}</p>
+            <p className="text-sm text-gray-500">{t('المقبوضات النقدية', 'Cash In')}</p>
+          </div>
+          <div className="card">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center"><ArrowUpCircle size="18" /></div>
+            </div>
+            <p className="text-2xl font-bold text-rose-700">{summary.cashOut?.toLocaleString()}</p>
+            <p className="text-sm text-gray-500">{t('المدفوعات النقدية', 'Cash Out')}</p>
           </div>
           <div className="card">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center"><Building2 size="18" /></div>
             </div>
-            <p className="text-2xl font-bold text-gray-800">{summary.payrollTotal?.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">{t('إجمالي الرواتب', 'Total Payroll')}</p>
+            <p className="text-2xl font-bold text-gray-800">{summary.projectRevenue?.toLocaleString()}</p>
+            <p className="text-sm text-gray-500">{t('قيمة المشاريع', 'Project Value')}</p>
           </div>
           <div className="card">
             <div className="flex items-center gap-2 mb-2">
@@ -298,7 +314,7 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
           </select>
         </div>
         <button onClick={() => setShowForm(true)} className="btn-primary text-sm py-1.5">
-          <Plus size="16" className="inline ml-1" />{t('فاتورة جديدة', 'New Invoice')}
+          <Plus size="16" className="inline me-1" />{t('فاتورة جديدة', 'New Invoice')}
         </button>
       </div>
       <div className="overflow-x-auto">
@@ -391,13 +407,15 @@ function ReportsTab({ companySlug, lang, t, isCombined }) {
       ]).then(([p, a]) => {
         const merged = [];
         for (let m = 1; m <= 12; m++) {
-          const pMonth = p.find(r => r.month === m) || { income: 0, expenses: 0, payroll: 0 };
-          const aMonth = a.find(r => r.month === m) || { income: 0, expenses: 0, payroll: 0 };
+          const pMonth = p.find(r => r.month === m) || { income: 0, expenses: 0, payroll: 0, cash_in: 0, cash_out: 0 };
+          const aMonth = a.find(r => r.month === m) || { income: 0, expenses: 0, payroll: 0, cash_in: 0, cash_out: 0 };
           merged.push({
             month: m,
             income: (pMonth.income || 0) + (aMonth.income || 0),
             expenses: (pMonth.expenses || 0) + (aMonth.expenses || 0),
             payroll: (pMonth.payroll || 0) + (aMonth.payroll || 0),
+            cash_in: (pMonth.cash_in || 0) + (aMonth.cash_in || 0),
+            cash_out: (pMonth.cash_out || 0) + (aMonth.cash_out || 0),
             net: (pMonth.income || 0) + (aMonth.income || 0) - (pMonth.expenses || 0) - (aMonth.expenses || 0) - (pMonth.payroll || 0) - (aMonth.payroll || 0),
           });
         }
@@ -409,37 +427,41 @@ function ReportsTab({ companySlug, lang, t, isCombined }) {
   }, [companySlug, isCombined]);
 
   return (
-    <div className="space-y-4">
-      <h3 className="font-semibold text-gray-700">{t('التقارير الشهرية', 'Monthly Reports')} — {year}</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-200">
-              <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الشهر', 'Month')}</th>
-              <th className="text-right py-2 px-2 font-medium text-gray-600">{t('إجمالي الدخل', 'Total Income')}</th>
-              <th className="text-right py-2 px-2 font-medium text-gray-600">{t('إجمالي المصاريف', 'Total Expenses')}</th>
-              <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الرواتب', 'Payroll')}</th>
-              <th className="text-right py-2 px-2 font-medium text-gray-600">{t('صافي التدفق', 'Net Flow')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {reports.map((r, i) => (
-              <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="py-2 px-2 font-medium">{monthNames[r.month - 1]}</td>
-                <td className="py-2 px-2 text-green-600 font-medium">{r.income?.toLocaleString()}</td>
-                <td className="py-2 px-2 text-red-600 font-medium">{r.expenses?.toLocaleString()}</td>
-                <td className="py-2 px-2 text-orange-600">{r.payroll?.toLocaleString()}</td>
-                <td className={`py-2 px-2 font-bold ${r.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                  {r.net?.toLocaleString()}
-                </td>
+      <div className="space-y-4">
+        <h3 className="font-semibold text-gray-700">{t('التقارير الشهرية', 'Monthly Reports')} — {year}</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الشهر', 'Month')}</th>
+                <th className="text-right py-2 px-2 font-medium text-gray-600">{t('إجمالي الدخل', 'Total Income')}</th>
+                <th className="text-right py-2 px-2 font-medium text-gray-600">{t('إجمالي المصاريف', 'Total Expenses')}</th>
+                <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الرواتب', 'Payroll')}</th>
+                <th className="text-right py-2 px-2 font-medium text-gray-600">{t('مقبوضات نقدية', 'Cash In')}</th>
+                <th className="text-right py-2 px-2 font-medium text-gray-600">{t('مدفوعات نقدية', 'Cash Out')}</th>
+                <th className="text-right py-2 px-2 font-medium text-gray-600">{t('صافي التدفق', 'Net Flow')}</th>
               </tr>
-            ))}
-            {reports.length === 0 && (
-              <tr><td colSpan="5" className="text-center py-8 text-gray-400">{t('لا توجد بيانات', 'No data')}</td></tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {reports.map((r, i) => (
+                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="py-2 px-2 font-medium">{monthNames[r.month - 1]}</td>
+                  <td className="py-2 px-2 text-green-600 font-medium">{r.income?.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-red-600 font-medium">{r.expenses?.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-orange-600">{r.payroll?.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-emerald-600 font-medium">{r.cash_in?.toLocaleString()}</td>
+                  <td className="py-2 px-2 text-rose-600 font-medium">{r.cash_out?.toLocaleString()}</td>
+                  <td className={`py-2 px-2 font-bold ${r.net >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {r.net?.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+              {reports.length === 0 && (
+                <tr><td colSpan="7" className="text-center py-8 text-gray-400">{t('لا توجد بيانات', 'No data')}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
   );
 }

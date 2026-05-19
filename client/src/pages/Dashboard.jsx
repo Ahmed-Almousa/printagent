@@ -63,7 +63,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${isPrinting ? 'bg-blue-600' : 'bg-green-600'}`}>
-          <Building2 size={16} className="inline ml-1" />
+          <Building2 size={16} className="inline me-1" />
           {isPrinting ? t('المطبعة', 'Printing Press') : t('الوكالة الإعلانية', 'Advertising Agency')}
         </div>
       </div>

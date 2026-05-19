@@ -167,21 +167,21 @@ export default function Projects() {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">{t('العميل', 'Client')}</label><input className="input" value={form.client_name} onChange={(e) => setForm({...form, client_name: e.target.value})} /></div>
                 <div>
-                  <label className="label"><Calendar size="14" className="inline ml-1" />{t('تاريخ الطلب', 'Request Date')}</label>
+                  <label className="label"><Calendar size="14" className="inline me-1" />{t('تاريخ الطلب', 'Request Date')}</label>
                   <input type="date" className="input" value={form.request_date} onChange={(e) => setForm({...form, request_date: e.target.value})} />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label"><Tag size="14" className="inline ml-1" />{t('نوع الطلب', 'Request Type')}</label>
+                  <label className="label"><Tag size="14" className="inline me-1" />{t('نوع الطلب', 'Request Type')}</label>
                   <select className="select" value={form.request_type_id} onChange={(e) => setForm({...form, request_type_id: e.target.value})}>
                     <option value="">{t('اختر النوع', 'Select type')}</option>
                     {requestTypes.map((rt) => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label"><GitBranch size="14" className="inline ml-1" />{t('طريقة التنفيذ', 'Execution')}</label>
+                  <label className="label"><GitBranch size="14" className="inline me-1" />{t('طريقة التنفيذ', 'Execution')}</label>
                   <select className="select" value={form.execution_method} onChange={(e) => setForm({...form, execution_method: e.target.value})}>
                     {EXECUTION_METHODS.map((m) => <option key={m.value} value={m.value}>{t(m.labelAr, m.labelEn)}</option>)}
                   </select>
@@ -190,11 +190,11 @@ export default function Projects() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label"><DollarSign size="14" className="inline ml-1" />{t('قيمة الطلب', 'Order Value')}</label>
+                  <label className="label"><DollarSign size="14" className="inline me-1" />{t('قيمة الطلب', 'Order Value')}</label>
                   <input type="number" className="input" value={form.order_value} onChange={(e) => setForm({...form, order_value: e.target.value})} placeholder="0" />
                 </div>
                 <div>
-                  <label className="label"><CreditCard size="14" className="inline ml-1" />{t('دفعة على الحساب', 'Down Payment')}</label>
+                  <label className="label"><CreditCard size="14" className="inline me-1" />{t('دفعة على الحساب', 'Down Payment')}</label>
                   <input type="number" className="input" value={form.down_payment} onChange={(e) => setForm({...form, down_payment: e.target.value})} placeholder="0" />
                 </div>
               </div>

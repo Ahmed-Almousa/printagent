@@ -60,7 +60,7 @@ export default function ArchivePage() {
                   <div className="flex items-center gap-2 mb-1">
                     <h2 className="text-lg font-semibold text-gray-800">{proj.title}</h2>
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${stage.color}`}>
-                      {proj.status === 'rejected' ? <Ban size="10" className="inline mr-1" /> : null}
+                      {proj.status === 'rejected' ? <Ban size="10" className="inline ms-1" /> : null}
                       {t(stage.ar, stage.en)}
                     </span>
                   </div>

@@ -380,7 +380,7 @@ export default function Employees() {
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="label">{t('اسم المستخدم', 'Username')} {(!editingEmp || !editingEmp.user_id) && <span className="text-red-500">*</span>}</label><input className="input" value={form.username} onChange={(e) => setForm({...form, username: e.target.value})} disabled={!!editingEmp?.user_id} required={!editingEmp || !editingEmp.user_id} /></div>
-                  <div><label className="label">{t('كلمة المرور', 'Password')} {!editingEmp?.user_id && <span className="text-red-500">*</span>}{editingEmp?.user_id && <span className="text-xs text-gray-400 mr-1">({t('اتركه فارغاً', 'leave blank')})</span>}</label><input type="password" className="input" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} required={!editingEmp || !editingEmp.user_id} /></div>
+                  <div><label className="label">{t('كلمة المرور', 'Password')} {!editingEmp?.user_id && <span className="text-red-500">*</span>}{editingEmp?.user_id && <span className="text-xs text-gray-400 ms-1">({t('اتركه فارغاً', 'leave blank')})</span>}</label><input type="password" className="input" value={form.password} onChange={(e) => setForm({...form, password: e.target.value})} required={!editingEmp || !editingEmp.user_id} /></div>
                 </div>
                 <div className="mt-2">
                   <label className="label">{t('الدور', 'Role')}</label>

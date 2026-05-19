@@ -71,7 +71,7 @@ export default function SalaryAdvances() {
                 {a.reviewed_by && <p className="text-xs text-gray-400 mt-1">{t('تمت المراجعة', 'Reviewed')}</p>}
               </div>
               {canReview && a.status === 'pending' && (
-                <div className="flex gap-2 mr-4">
+                <div className="flex gap-2 ms-4">
                   <button onClick={() => handleReview(a.id, 'approved')} className="btn-success text-xs px-3 py-1"><CheckCircle size="14" /></button>
                   <button onClick={() => handleReview(a.id, 'rejected')} className="btn-danger text-xs px-3 py-1"><XCircle size="14" /></button>
                   <button onClick={() => handleReview(a.id, 'paid')} className="btn-primary text-xs px-3 py-1">{t('دفع', 'Pay')}</button>

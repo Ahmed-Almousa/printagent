@@ -7,11 +7,26 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, '..', 'uploads')),
-  filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, Date.now() + '_' + Math.random().toString(36).slice(2) + ext);
+  }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIMES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only images, PDFs, and document files are allowed.'));
+    }
+  }
+});
 
 const router = Router();
 
@@ -20,6 +35,7 @@ const ADVERTISING_STAGES = ['brief', 'concept_design', 'client_feedback', 'launc
 const APPROVAL_GATE_STAGE = 'production';
 
 router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { project_id, stage } = req.query;
   let sql = `SELECT t.*, u.full_name as assignee_name,
@@ -33,9 +49,11 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   sql += ' ORDER BY t.created_at DESC';
   const tasks = await db.prepare(sql).all(...params);
   res.json(tasks);
+  } catch (err) { console.error('tasks error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug', authenticate, companyAccess, requirePermission('tasks.create'), async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { project_id, title, description, stage, assignee_id, priority, due_date } = req.body;
   const id = 'task_' + Date.now();
@@ -43,9 +61,11 @@ router.post('/:companySlug', authenticate, companyAccess, requirePermission('tas
     .run(id, project_id, title, description, stage || 'draft', assignee_id || null, priority || 'medium', due_date || null, req.user.id, req.params.companySlug);
   const task = await db.prepare('SELECT * FROM tasks WHERE id = ? AND company_slug = ?').get(id, req.params.companySlug);
   res.json(task);
+  } catch (err) { console.error('tasks error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const task = await db.prepare('SELECT * FROM tasks WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
   if (!task) return res.status(404).json({ error: 'Task not found' });
@@ -96,27 +116,33 @@ router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) =>
 
   const updated = await db.prepare('SELECT t.*, u.full_name as assignee_name FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id WHERE t.id = ? AND t.company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(updated);
+  } catch (err) { console.error('tasks error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const task = await db.prepare('SELECT t.*, u.full_name as assignee_name FROM tasks t LEFT JOIN users u ON t.assignee_id = u.id WHERE t.id = ? AND t.company_slug = ?').get(req.params.id, req.params.companySlug);
   if (!task) return res.status(404).json({ error: 'Task not found' });
   const comments = await db.prepare('SELECT c.*, u.full_name as user_name FROM task_comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.task_id = ? AND c.company_slug = ? ORDER BY c.created_at ASC').all(req.params.id, req.params.companySlug);
   const attachments = await db.prepare('SELECT * FROM task_attachments WHERE task_id = ? AND company_slug = ?').all(req.params.id, req.params.companySlug);
   res.json({ ...task, comments, attachments });
+  } catch (err) { console.error('tasks error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug/:id/comment', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { message } = req.body;
   const id = 'cmt_' + Date.now();
   await db.prepare('INSERT INTO task_comments (id, task_id, user_id, message, company_slug) VALUES (?,?,?,?,?)').run(id, req.params.id, req.user.id, message, req.params.companySlug);
   const comment = await db.prepare('SELECT c.*, u.full_name as user_name FROM task_comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.id = ? AND c.company_slug = ?').get(id, req.params.companySlug);
   res.json(comment);
+  } catch (err) { console.error('tasks error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug/:id/upload', authenticate, companyAccess, upload.array('files'), async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const attachments = [];
   for (const file of req.files) {
@@ -126,6 +152,7 @@ router.post('/:companySlug/:id/upload', authenticate, companyAccess, upload.arra
     attachments.push(await db.prepare('SELECT * FROM task_attachments WHERE id = ? AND company_slug = ?').get(id, req.params.companySlug));
   }
   res.json(attachments);
+  } catch (err) { console.error('tasks error:', err); res.status(500).json({ error: err.message }); }
 });
 
 export default router;

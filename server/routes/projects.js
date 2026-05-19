@@ -7,6 +7,7 @@ const router = Router();
 const FIRST_STAGES = { printing: 'draft', advertising: 'brief' };
 
 router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { status, in_tasks } = req.query;
   let sql = 'SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.company_slug = ?';
@@ -17,19 +18,31 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   sql += ' ORDER BY p.created_at DESC';
   const projects = await db.prepare(sql).all(...params);
   res.json(projects);
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { title, description, client_name, order_value, down_payment, request_date, request_type_id, execution_method } = req.body;
   const id = 'proj_' + Date.now();
   await db.prepare('INSERT INTO projects (id, title, description, client_name, order_value, down_payment, request_date, request_type_id, execution_method, created_by, company_slug) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
     .run(id, title, description, client_name, order_value || 0, down_payment || 0, request_date || null, request_type_id || null, execution_method || 'internal', req.user.id, req.params.companySlug);
+  // Auto-create cash_transaction for down payment
+  const dp = parseFloat(down_payment) || 0;
+  if (dp > 0) {
+    const cashId = 'cash_' + Date.now();
+    await db.prepare(`INSERT INTO cash_transactions (id, type, amount, description, reference_type, reference_id, category, created_by, company_slug)
+      VALUES (?, 'in', ?, ?, 'project_down_payment', ?, 'مبيعات', ?, ?)`)
+      .run(cashId, dp, `دفعة على حساب المشروع: ${title}`, id, req.user.id, req.params.companySlug);
+  }
   const project = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ? AND p.company_slug = ?').get(id, req.params.companySlug);
   res.json(project);
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/approve/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const company = req.params.companySlug;
   const firstStage = FIRST_STAGES[company] || 'draft';
@@ -40,9 +53,11 @@ router.put('/approve/:companySlug/:id', authenticate, companyAccess, async (req,
   await db.prepare('INSERT INTO notifications (id, user_id, title, message, type, company_slug) VALUES (?, ?, ?, ?, ?, ?)')
     .run('notif_' + Date.now(), req.user.id, 'تمت الموافقة على مشروع', `تمت الموافقة على المشروع "${project?.title || 'غير معروف'}" من قبل ${user?.full_name || 'المدير'}`, 'success', req.params.companySlug);
   res.json(project);
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/reject/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const masterDb = getMasterDb();
   const user = await masterDb.prepare('SELECT full_name FROM users WHERE id = ?').get(req.user.id);
@@ -51,27 +66,41 @@ router.put('/reject/:companySlug/:id', authenticate, companyAccess, async (req, 
   await db.prepare('INSERT INTO notifications (id, user_id, title, message, type, company_slug) VALUES (?, ?, ?, ?, ?, ?)')
     .run('notif_' + Date.now(), req.user.id, 'تم رفض مشروع', `تم رفض المشروع "${project?.title || 'غير معروف'}" من قبل ${user?.full_name || 'المدير'}`, 'error', req.params.companySlug);
   res.json(project);
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/send-to-tasks/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const company = req.params.companySlug;
   const firstStage = FIRST_STAGES[company] || 'draft';
   await db.prepare('UPDATE projects SET stage = ? WHERE id = ? AND company_slug = ?').run(firstStage, req.params.id, req.params.companySlug);
   const project = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ? AND p.company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(project);
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/pay/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const project = await db.prepare('SELECT * FROM projects WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
   if (!project) return res.status(404).json({ error: 'Project not found' });
+  const remaining = (project.order_value || 0) - (project.down_payment || 0);
   await db.prepare('UPDATE projects SET down_payment = order_value WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
+  // Auto-create cash_transaction for remaining payment
+  if (remaining > 0) {
+    const cashId = 'cash_' + Date.now();
+    await db.prepare(`INSERT INTO cash_transactions (id, type, amount, description, reference_type, reference_id, category, created_by, company_slug)
+      VALUES (?, 'in', ?, ?, 'project_final_payment', ?, 'مبيعات', ?, ?)`)
+      .run(cashId, remaining, `باقي قيمة المشروع: ${project.title}`, req.params.id, req.user.id, req.params.companySlug);
+  }
   const updated = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ? AND p.company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(updated);
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { title, description, status, client_name, order_value, down_payment, request_date, request_type_id, execution_method, is_archived, archive_reason, stage } = req.body;
   await db.prepare(`UPDATE projects SET
@@ -85,13 +114,16 @@ router.put('/:companySlug/:id', authenticate, companyAccess, async (req, res) =>
     .run(title, description, status, client_name, order_value, down_payment, request_date, request_type_id, execution_method, is_archived, archive_reason, stage, req.params.id, req.params.companySlug);
   const project = await db.prepare('SELECT p.*, rt.name as request_type_name FROM projects p LEFT JOIN request_types rt ON p.request_type_id = rt.id WHERE p.id = ? AND p.company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(project);
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:companySlug/:id', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   await db.prepare('DELETE FROM tasks WHERE project_id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
   await db.prepare('DELETE FROM projects WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
   res.json({ success: true });
+  } catch (err) { console.error('projects error:', err); res.status(500).json({ error: err.message }); }
 });
 
 export default router;

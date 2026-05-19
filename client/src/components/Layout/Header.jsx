@@ -81,7 +81,7 @@ export default function Header({ onMenuClick }) {
           title={t('English', 'العربية')}
         >
           <Globe size={18} />
-          <span className="text-xs mr-1">{lang === 'ar' ? 'EN' : 'AR'}</span>
+          <span className="text-xs ms-1">{lang === 'ar' ? 'EN' : 'AR'}</span>
         </button>
 
         <div className="relative">
@@ -110,7 +110,7 @@ export default function Header({ onMenuClick }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2 mr-3 pr-3 border-r border-gray-200">
+        <div className="flex items-center gap-2 ms-3 pr-3 border-r border-gray-200">
           <div className="text-left">
             <p className="text-sm font-medium text-gray-700">{user?.full_name}</p>
             <p className="text-xs text-gray-400 capitalize">{user?.role?.replace('_', ' ')}</p>

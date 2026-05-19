@@ -34,11 +34,15 @@ router.get('/range/:companySlug', authenticate, companyAccess, async (req, res) 
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to required' });
   try {
+    // Calculate next day for upper bound
+    const nextDay = new Date(to);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const toNext = nextDay.toISOString().slice(0, 10);
     const transactions = await db.prepare(`
       SELECT * FROM cash_transactions
-      WHERE company_slug = ? AND DATE(created_at) >= DATE(?) AND DATE(created_at) <= DATE(?)
+      WHERE company_slug = ? AND created_at >= ? AND created_at < ?
       ORDER BY created_at ASC
-    `).all(req.params.companySlug, from, to);
+    `).all(req.params.companySlug, from, toNext);
     res.json(transactions);
   } catch (err) {
     console.error('cash range error:', err);

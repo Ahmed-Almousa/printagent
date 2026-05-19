@@ -5,6 +5,7 @@ import { authenticate, companyAccess } from '../middleware/auth.js';
 const router = Router();
 
 router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const projects = await db.prepare(`
     SELECT p.*, rt.name as request_type_name
@@ -32,6 +33,7 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   }
 
   res.json(result);
+  } catch (err) { console.error('archive error:', err); res.status(500).json({ error: err.message }); }
 });
 
 export default router;

@@ -6,15 +6,18 @@ import bcrypt from 'bcryptjs';
 const router = Router();
 
 router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { all } = req.query;
   const employees = all
     ? await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.company_slug = ? ORDER BY e.full_name').all(req.params.companySlug)
     : await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.company_slug = ? AND e.is_active = 1 ORDER BY e.full_name').all(req.params.companySlug);
   res.json(employees);
+  } catch (err) { console.error('employees error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug', authenticate, companyAccess, requirePermission('employees.create'), async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
   const { full_name, email, phone, position, base_salary, username, password, role, assigned_stages, user_id } = req.body;
@@ -55,9 +58,11 @@ router.post('/:companySlug', authenticate, companyAccess, requirePermission('emp
 
   const emp = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ? AND e.company_slug = ?').get(id, req.params.companySlug);
   res.json(emp);
+  } catch (err) { console.error('employees error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('employees.edit'), async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
   const emp = await db.prepare('SELECT * FROM employees WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
@@ -120,9 +125,11 @@ router.put('/:companySlug/:id', authenticate, companyAccess, requirePermission('
 
   const updated = await db.prepare('SELECT e.*, u.username, u.role, u.is_active as user_active FROM employees e LEFT JOIN users u ON e.user_id = u.id WHERE e.id = ? AND e.company_slug = ?').get(req.params.id, req.params.companySlug);
   res.json(updated);
+  } catch (err) { console.error('employees error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/:companySlug/:id', authenticate, companyAccess, requirePermission('employees.delete'), async (req, res) => {
+  try {
   const masterDb = getMasterDb();
   const db = getCompanyDb(req.params.companySlug);
   const emp = await db.prepare('SELECT * FROM employees WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
@@ -135,9 +142,11 @@ router.delete('/:companySlug/:id', authenticate, companyAccess, requirePermissio
   await db.prepare('DELETE FROM attendance WHERE user_id = ? AND company_slug = ?').run(emp.user_id || emp.id, req.params.companySlug);
   await db.prepare('DELETE FROM employees WHERE id = ? AND company_slug = ?').run(req.params.id, req.params.companySlug);
   res.json({ success: true });
+  } catch (err) { console.error('employees error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:companySlug/performance', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const employees = await db.prepare('SELECT id, full_name, position FROM employees WHERE is_active = 1 AND company_slug = ?').all(req.params.companySlug);
   const performance = [];
@@ -155,6 +164,7 @@ router.get('/:companySlug/performance', authenticate, companyAccess, async (req,
     });
   }
   res.json(performance);
+  } catch (err) { console.error('employees error:', err); res.status(500).json({ error: err.message }); }
 });
 
 export default router;

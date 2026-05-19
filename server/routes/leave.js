@@ -5,6 +5,7 @@ import { authenticate, companyAccess } from '../middleware/auth.js';
 const router = Router();
 
 router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { status, user_id } = req.query;
   let sql = 'SELECT l.*, u.full_name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.company_slug = ?';
@@ -14,9 +15,11 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   sql += ' ORDER BY l.created_at DESC';
   const leaves = await db.prepare(sql).all(...params);
   res.json(leaves);
+  } catch (err) { console.error('leave error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { type, start_date, end_date, reason } = req.body;
   if (!reason) return res.status(400).json({ error: 'Reason is required' });
@@ -27,9 +30,11 @@ router.post('/:companySlug', authenticate, companyAccess, async (req, res) => {
     .run('notif_' + Date.now(), req.user.id, 'طلب إجازة جديد', 'تم تقديم طلب إجازة جديد', 'leave', req.params.companySlug);
   const leave = await db.prepare('SELECT l.*, u.full_name as user_name FROM leave_requests l LEFT JOIN users u ON l.user_id = u.id WHERE l.id = ? AND l.company_slug = ?').get(id, req.params.companySlug);
   res.json(leave);
+  } catch (err) { console.error('leave error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.put('/:companySlug/:id/review', authenticate, companyAccess, async (req, res) => {
+  try {
   if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
   const db = getCompanyDb(req.params.companySlug);
   const { status } = req.body;
@@ -40,6 +45,7 @@ router.put('/:companySlug/:id/review', authenticate, companyAccess, async (req, 
   await db.prepare('INSERT INTO notifications (id, user_id, title, message, type, company_slug) VALUES (?,?,?,?,?,?)')
     .run('notif_' + Date.now(), leave.user_id, status === 'approved' ? 'تمت الموافقة على الإجازة' : 'تم رفض الإجازة', `طلب الإجازة ${status === 'approved' ? 'تمت الموافقة عليه' : 'تم رفضه'}`, 'leave', req.params.companySlug);
   res.json(leave);
+  } catch (err) { console.error('leave error:', err); res.status(500).json({ error: err.message }); }
 });
 
 export default router;

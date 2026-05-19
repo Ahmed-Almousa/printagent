@@ -5,6 +5,7 @@ import { authenticate, companyAccess } from '../middleware/auth.js';
 const router = Router();
 
 router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const { date, user_id } = req.query;
   let sql = 'SELECT a.*, u.full_name as user_name FROM attendance a LEFT JOIN users u ON a.user_id = u.id WHERE a.company_slug = ?';
@@ -14,9 +15,11 @@ router.get('/:companySlug', authenticate, companyAccess, async (req, res) => {
   sql += ' ORDER BY a.created_at DESC';
   const records = await db.prepare(sql).all(...params);
   res.json(records);
+  } catch (err) { console.error('attendance error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug/clock-in', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const today = new Date().toISOString().split('T')[0];
   const existing = await db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ? AND company_slug = ?').get(req.user.id, today, req.params.companySlug);
@@ -28,9 +31,11 @@ router.post('/:companySlug/clock-in', authenticate, companyAccess, async (req, r
     .run(id, req.user.id, today, now, lat || null, lng || null, req.params.companySlug);
   const record = await db.prepare('SELECT * FROM attendance WHERE id = ? AND company_slug = ?').get(id, req.params.companySlug);
   res.json(record);
+  } catch (err) { console.error('attendance error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.post('/:companySlug/clock-out', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const today = new Date().toISOString().split('T')[0];
   const record = await db.prepare('SELECT * FROM attendance WHERE user_id = ? AND date = ? AND company_slug = ?').get(req.user.id, today, req.params.companySlug);
@@ -40,14 +45,17 @@ router.post('/:companySlug/clock-out', authenticate, companyAccess, async (req, 
   await db.prepare('UPDATE attendance SET clock_out = ? WHERE id = ? AND company_slug = ?').run(now, record.id, req.params.companySlug);
   const updated = await db.prepare('SELECT * FROM attendance WHERE id = ? AND company_slug = ?').get(record.id, req.params.companySlug);
   res.json(updated);
+  } catch (err) { console.error('attendance error:', err); res.status(500).json({ error: err.message }); }
 });
 
 router.get('/:companySlug/today', authenticate, companyAccess, async (req, res) => {
+  try {
   const db = getCompanyDb(req.params.companySlug);
   const today = new Date().toISOString().split('T')[0];
   const todayAtt = await db.prepare("SELECT a.*, u.full_name as user_name FROM attendance a LEFT JOIN users u ON a.user_id = u.id WHERE a.date = ? AND a.company_slug = ?").all(today, req.params.companySlug);
   const employees = await db.prepare("SELECT id, full_name FROM employees WHERE is_active = 1 AND company_slug = ?").all(req.params.companySlug);
   res.json({ today: todayAtt, employees });
+  } catch (err) { console.error('attendance error:', err); res.status(500).json({ error: err.message }); }
 });
 
 export default router;

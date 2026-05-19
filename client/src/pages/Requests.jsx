@@ -22,10 +22,10 @@ export default function Requests() {
 
       <div className="flex gap-1 bg-gray-100 rounded-lg p-1 w-fit">
         <button onClick={() => setTab('leave')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${tab === 'leave' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'}`}>
-          <CalendarCheck size="16" className="inline mr-1" />{t('الإجازات', 'Leave')}
+          <CalendarCheck size="16" className="inline ms-1" />{t('الإجازات', 'Leave')}
         </button>
         <button onClick={() => setTab('advances')} className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${tab === 'advances' ? 'bg-white shadow-sm text-primary-700' : 'text-gray-500 hover:text-gray-700'}`}>
-          <HandCoins size="16" className="inline mr-1" />{t('السلف', 'Advances')}
+          <HandCoins size="16" className="inline ms-1" />{t('السلف', 'Advances')}
         </button>
       </div>
 
@@ -72,7 +72,7 @@ function LeaveSection({ t, activeCompany, user }) {
     <>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{t('طلبات الإجازة', 'Leave Requests')}</p>
-        <button onClick={() => setShowForm(true)} className="btn-primary text-sm"><Plus size="16" className="inline mr-1" />{t('طلب إجازة', 'New Leave')}</button>
+        <button onClick={() => setShowForm(true)} className="btn-primary text-sm"><Plus size="16" className="inline ms-1" />{t('طلب إجازة', 'New Leave')}</button>
       </div>
       <div className="space-y-3">
         {leaves.map((l) => (
@@ -183,7 +183,7 @@ function AdvancesSection({ t, activeCompany, user }) {
     <>
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm text-gray-500">{t('سلف الراتب', 'Salary Advances')}</p>
-        <button onClick={() => setShowForm(true)} className="btn-primary text-sm"><Plus size="16" className="inline mr-1" />{t('طلب سلفة', 'New Advance')}</button>
+        <button onClick={() => setShowForm(true)} className="btn-primary text-sm"><Plus size="16" className="inline ms-1" />{t('طلب سلفة', 'New Advance')}</button>
       </div>
       <div className="space-y-3">
         {advances.map((a) => (

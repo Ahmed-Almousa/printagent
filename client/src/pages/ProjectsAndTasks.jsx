@@ -384,24 +384,24 @@ export default function ProjectsAndTasks() {
               <div><label className="label">{t('الوصف', 'Description')}</label><textarea className="input" rows="2" value={projForm.description} onChange={(e) => setProjForm({...projForm, description: e.target.value})} /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="label">{t('العميل', 'Client')}</label><input className="input" value={projForm.client_name} onChange={(e) => setProjForm({...projForm, client_name: e.target.value})} /></div>
-                <div><label className="label"><Calendar size="14" className="inline ml-1" />{t('تاريخ الطلب', 'Request Date')}</label><input type="date" className="input" value={projForm.request_date} onChange={(e) => setProjForm({...projForm, request_date: e.target.value})} /></div>
+                <div><label className="label"><Calendar size="14" className="inline me-1" />{t('تاريخ الطلب', 'Request Date')}</label><input type="date" className="input" value={projForm.request_date} onChange={(e) => setProjForm({...projForm, request_date: e.target.value})} /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label"><Tag size="14" className="inline ml-1" />{t('نوع الطلب', 'Request Type')}</label>
+                <div><label className="label"><Tag size="14" className="inline me-1" />{t('نوع الطلب', 'Request Type')}</label>
                   <select className="select" value={projForm.request_type_id} onChange={(e) => setProjForm({...projForm, request_type_id: e.target.value})}>
                     <option value="">{t('اختر النوع', 'Select type')}</option>
                     {requestTypes.map((rt) => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
                   </select>
                 </div>
-                <div><label className="label"><GitBranch size="14" className="inline ml-1" />{t('طريقة التنفيذ', 'Execution')}</label>
+                <div><label className="label"><GitBranch size="14" className="inline me-1" />{t('طريقة التنفيذ', 'Execution')}</label>
                   <select className="select" value={projForm.execution_method} onChange={(e) => setProjForm({...projForm, execution_method: e.target.value})}>
                     {EXECUTION_METHODS.map((m) => <option key={m.value} value={m.value}>{t(m.labelAr, m.labelEn)}</option>)}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="label"><DollarSign size="14" className="inline ml-1" />{t('قيمة الطلب', 'Order Value')}</label><input type="number" className="input" value={projForm.order_value} onChange={(e) => setProjForm({...projForm, order_value: e.target.value})} placeholder="0" /></div>
-                <div><label className="label"><CreditCard size="14" className="inline ml-1" />{t('دفعة على الحساب', 'Down Payment')}</label><input type="number" className="input" value={projForm.down_payment} onChange={(e) => setProjForm({...projForm, down_payment: e.target.value})} placeholder="0" /></div>
+                <div><label className="label"><DollarSign size="14" className="inline me-1" />{t('قيمة الطلب', 'Order Value')}</label><input type="number" className="input" value={projForm.order_value} onChange={(e) => setProjForm({...projForm, order_value: e.target.value})} placeholder="0" /></div>
+                <div><label className="label"><CreditCard size="14" className="inline me-1" />{t('دفعة على الحساب', 'Down Payment')}</label><input type="number" className="input" value={projForm.down_payment} onChange={(e) => setProjForm({...projForm, down_payment: e.target.value})} placeholder="0" /></div>
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="submit" className="btn-primary flex-1">{editing ? t('تحديث', 'Update') : t('إضافة', 'Add')}</button>
