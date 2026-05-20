@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCompany } from '../contexts/CompanyContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
+import toast from 'react-hot-toast';
 import {
   TrendingUp, FolderOpen, ListChecks, Users, Clock,
-  CalendarCheck, HandCoins, Building2, LogIn, LogOut, XCircle
+  CalendarCheck, HandCoins, Building2, LogIn, LogOut, XCircle,
+  Camera, Trash2
 } from 'lucide-react';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -24,6 +26,10 @@ export default function Dashboard() {
   const { activeCompany, lang } = useCompany();
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
+  const [company, setCompany] = useState(null);
+  const [now, setNow] = useState(new Date());
+  const [uploading, setUploading] = useState(false);
+  const logoInputRef = useRef(null);
   const t = (ar, en) => lang === 'ar' ? ar : en;
   const monthNames = lang === 'ar' ? MONTHS_AR : MONTHS;
   const isPrinting = activeCompany === 'printing';
@@ -33,7 +39,50 @@ export default function Dashboard() {
     api.get(`/auth/companies/${activeCompany}/stats?year=${year}`)
       .then(({ data }) => setStats(data))
       .catch(() => {});
+    api.get(`/settings/${activeCompany}/company`)
+      .then(({ data }) => setCompany(data))
+      .catch(() => {});
   }, [activeCompany]);
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const { data } = await api.post(`/settings/${activeCompany}/company/logo`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setCompany(prev => ({ ...prev, logo_url: data.logo_url }));
+      toast.success(t('تم رفع الشعار', 'Logo uploaded'));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('فشل الرفع', 'Upload failed'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleLogoRemove = async () => {
+    try {
+      await api.delete(`/settings/${activeCompany}/company/logo`);
+      setCompany(prev => ({ ...prev, logo_url: null }));
+      toast.success(t('تم حذف الشعار', 'Logo removed'));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('فشل الحذف', 'Delete failed'));
+    }
+  };
+
+  const formatDate = (d) => {
+    const opts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    return d.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-US', opts);
+  };
+  const formatTime = (d) => d.toLocaleTimeString(lang === 'ar' ? 'ar-SA' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const statCards = stats ? [
     { icon: TrendingUp, label: t('إجمالي الإيرادات', 'Total Revenue'), value: `${stats.totalRevenue?.toLocaleString()}`, color: 'text-green-600', bg: 'bg-green-50', to: '/finances' },
@@ -62,9 +111,35 @@ export default function Dashboard() {
             {isPrinting ? t('مرحباً بك في لوحة تحكم المطبعة', 'Welcome to Printing Dashboard') : t('مرحباً بك في لوحة تحكم الوكالة الإعلانية', 'Welcome to Agency Dashboard')}
           </p>
         </div>
-        <div className={`px-4 py-2 rounded-lg text-white text-sm font-medium ${isPrinting ? 'bg-blue-600' : 'bg-green-600'}`}>
-          <Building2 size={16} className="inline me-1" />
-          {isPrinting ? t('المطبعة', 'Printing Press') : t('الوكالة الإعلانية', 'Advertising Agency')}
+        <div className={`card px-5 py-3 flex items-center gap-4 ${isPrinting ? 'border-blue-200' : 'border-green-200'}`}>
+          <div className="relative group">
+            <div className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden border-2 ${isPrinting ? 'border-blue-300' : 'border-green-300'}`}>
+              {company?.logo_url ? (
+                <img src={company.logo_url} alt="logo" className="w-full h-full object-cover" />
+              ) : (
+                <Building2 size="28" className={isPrinting ? 'text-blue-500' : 'text-green-500'} />
+              )}
+            </div>
+            <input type="file" ref={logoInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+            <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 cursor-pointer"
+              onClick={() => logoInputRef.current?.click()}>
+              {uploading ? (
+                <span className="text-white text-xs animate-pulse">{t('رفع...', '...')}</span>
+              ) : (
+                <Camera size="16" className="text-white" />
+              )}
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold text-gray-800">{company?.name || (isPrinting ? t('المطبعة', 'Printing Press') : t('الوكالة الإعلانية', 'Advertising Agency'))}</p>
+            <p className="text-xs text-gray-500" dir="ltr">{formatDate(now)}</p>
+            <p className="text-sm font-semibold text-gray-700" dir="ltr">{formatTime(now)}</p>
+          </div>
+          {company?.logo_url && (
+            <button onClick={handleLogoRemove} className="p-1 rounded-full hover:bg-red-50 text-red-400 hover:text-red-600 transition-colors" title={t('حذف الشعار', 'Remove logo')}>
+              <Trash2 size="14" />
+            </button>
+          )}
         </div>
       </div>
 
