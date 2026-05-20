@@ -23,6 +23,7 @@ import archiveRoutes from './routes/archive.js';
 import permissionsRoutes from './routes/permissions.js';
 import financesRoutes from './routes/finances.js';
 import cashRoutes from './routes/cash.js';
+import seedRoutes from './routes/seed.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -62,6 +63,7 @@ async function bootstrap() {
   app.use('/api/permissions', permissionsRoutes);
   app.use('/api/finances', financesRoutes);
   app.use('/api/cash', cashRoutes);
+  app.use('/api/seed', seedRoutes);
 
   app.get('/api/users/:companySlug', authenticate, async (req, res) => {
     const masterDb = getMasterDb();
