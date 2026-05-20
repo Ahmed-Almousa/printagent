@@ -75,9 +75,8 @@ router.get('/companies/:slug/stats', authenticate, async (req, res) => {
   const db = getCompanyDb(company.slug);
 
   const activeProjects = await db.prepare("SELECT COUNT(*) as c FROM projects WHERE status = 'active'").get();
-  const projectValue = await db.prepare('SELECT COALESCE(SUM(order_value),0) as total FROM projects').get();
   const cashInflow = await db.prepare("SELECT COALESCE(SUM(amount),0) as total FROM cash_transactions WHERE type='in'").get();
-  const totalRevenue = { total: (projectValue?.total || 0) + (cashInflow?.total || 0) };
+  const totalRevenue = { total: cashInflow?.total || 0 };
   const activeTasks = await db.prepare("SELECT COUNT(*) as c FROM tasks WHERE stage NOT IN ('done','completed','delivered','cancelled','archived')").get();
   const employeesCount = await db.prepare('SELECT COUNT(*) as c FROM employees WHERE is_active = 1').get();
   const todayCheckins = await db.prepare("SELECT COUNT(*) as c FROM attendance WHERE date = CURRENT_DATE").get();

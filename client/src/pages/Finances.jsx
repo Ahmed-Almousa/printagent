@@ -416,7 +416,7 @@ function ReportsTab({ companySlug, lang, t, isCombined }) {
             payroll: (pMonth.payroll || 0) + (aMonth.payroll || 0),
             cash_in: (pMonth.cash_in || 0) + (aMonth.cash_in || 0),
             cash_out: (pMonth.cash_out || 0) + (aMonth.cash_out || 0),
-            net: (pMonth.income || 0) + (aMonth.income || 0) - (pMonth.expenses || 0) - (aMonth.expenses || 0) - (pMonth.payroll || 0) - (aMonth.payroll || 0),
+            net: (pMonth.income || 0) + (pMonth.cash_in || 0) + (aMonth.income || 0) + (aMonth.cash_in || 0) - (pMonth.expenses || 0) - (pMonth.cash_out || 0) - (aMonth.expenses || 0) - (aMonth.cash_out || 0) - (pMonth.payroll || 0) - (aMonth.payroll || 0),
           });
         }
         setReports(merged);

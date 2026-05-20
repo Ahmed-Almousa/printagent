@@ -111,7 +111,7 @@ router.get('/:companySlug/reports', authenticate, companyAccess, async (req, res
       payroll: pay.payroll,
       cash_in: cin.cash_in,
       cash_out: cout.cash_out,
-      net: inv.income - inv.expenses - pay.payroll,
+      net: inv.income + cin.cash_in - inv.expenses - cout.cash_out - pay.payroll,
     });
   }
 
