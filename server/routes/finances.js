@@ -24,7 +24,7 @@ router.get('/:companySlug/summary', authenticate, companyAccess, async (req, res
     projectRevenue: projectRevenue ? projectRevenue.total : 0,
     cashIn: cashIn ? cashIn.total : 0,
     cashOut: cashOut ? cashOut.total : 0,
-    netBalance: (totalRevenue ? totalRevenue.total : 0) - (totalExpenses ? totalExpenses.total : 0) - (payrollTotal ? payrollTotal.total : 0),
+    netBalance: ((cashIn ? cashIn.total : 0) + (totalRevenue ? totalRevenue.total : 0)) - ((cashOut ? cashOut.total : 0) + (totalExpenses ? totalExpenses.total : 0) + (payrollTotal ? payrollTotal.total : 0)),
   });
   } catch (err) { console.error('finances error:', err); res.status(500).json({ error: err.message }); }
 });

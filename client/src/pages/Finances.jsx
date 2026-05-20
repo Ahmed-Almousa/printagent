@@ -45,7 +45,7 @@ export default function Finances() {
           projectRevenue: (p?.projectRevenue || 0) + (a?.projectRevenue || 0),
           cashIn: (p?.cashIn || 0) + (a?.cashIn || 0),
           cashOut: (p?.cashOut || 0) + (a?.cashOut || 0),
-          netBalance: (p?.netBalance || 0) + (a?.netBalance || 0),
+          netBalance: ((p?.cashIn || 0) + (a?.cashIn || 0) + (p?.totalRevenue || 0) + (a?.totalRevenue || 0)) - ((p?.cashOut || 0) + (a?.cashOut || 0) + (p?.totalExpenses || 0) + (a?.totalExpenses || 0) + (p?.payrollTotal || 0) + (a?.payrollTotal || 0)),
         });
       }).catch(() => setSummary(null));
     } else if (companyTab) {
