@@ -434,6 +434,32 @@ async function initCompanyDb(slug) {
             created_by TEXT, company_slug TEXT DEFAULT '',
             created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
           );
+          CREATE TABLE IF NOT EXISTS items (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, code TEXT, category TEXT, unit TEXT,
+            default_price DOUBLE PRECISION DEFAULT 0, description TEXT, is_active INTEGER DEFAULT 1,
+            company_slug TEXT DEFAULT '', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS invoice_items (
+            id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL, item_id TEXT, item_name TEXT,
+            quantity DOUBLE PRECISION NOT NULL DEFAULT 1, unit_price DOUBLE PRECISION NOT NULL DEFAULT 0,
+            total DOUBLE PRECISION NOT NULL DEFAULT 0, company_slug TEXT DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(invoice_id) REFERENCES invoices(id)
+          );
+          CREATE TABLE IF NOT EXISTS inventory (
+            id TEXT PRIMARY KEY, item_id TEXT NOT NULL, quantity DOUBLE PRECISION NOT NULL DEFAULT 0,
+            min_stock DOUBLE PRECISION DEFAULT 0, location TEXT, company_slug TEXT DEFAULT '',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(item_id) REFERENCES items(id)
+          );
+          CREATE TABLE IF NOT EXISTS inventory_movements (
+            id TEXT PRIMARY KEY, item_id TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('in','out','adjustment')),
+            quantity DOUBLE PRECISION NOT NULL, reference_type TEXT, reference_id TEXT, notes TEXT,
+            company_slug TEXT DEFAULT '', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(item_id) REFERENCES items(id)
+          );
         `);
 
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_cash_company_slug ON cash_transactions(company_slug)`);
@@ -453,6 +479,12 @@ async function initCompanyDb(slug) {
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_invoices_company_slug ON invoices(company_slug)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_slug)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_items_company ON items(company_slug)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_item ON inventory(item_id)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_company ON inventory(company_slug)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_inv_movements_item ON inventory_movements(item_id)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_inv_movements_company ON inventory_movements(company_slug)`);
 
         await d.exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
         await d.exec("ALTER TABLE projects ADD COLUMN IF NOT EXISTS archive_reason TEXT");
@@ -469,6 +501,14 @@ async function initCompanyDb(slug) {
         await d.exec(`ALTER TABLE salary_advances ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
         await d.exec(`ALTER TABLE payroll ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
         await d.exec(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS customer_name TEXT");
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS customer_phone TEXT");
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS customer_address TEXT");
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS notes TEXT");
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS tax DOUBLE PRECISION DEFAULT 0");
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS discount DOUBLE PRECISION DEFAULT 0");
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS subtotal DOUBLE PRECISION DEFAULT 0");
+        await d.exec("ALTER TABLE invoices ADD COLUMN IF NOT EXISTS total_items INTEGER DEFAULT 0");
         await d.exec(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
         await d.exec(`ALTER TABLE task_comments ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
         await d.exec(`ALTER TABLE task_attachments ADD COLUMN IF NOT EXISTS company_slug TEXT DEFAULT ''`);
@@ -618,6 +658,32 @@ async function initCompanyDb(slug) {
             created_by TEXT, company_slug TEXT DEFAULT '',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
           );
+          CREATE TABLE IF NOT EXISTS items (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, code TEXT, category TEXT, unit TEXT,
+            default_price REAL DEFAULT 0, description TEXT, is_active INTEGER DEFAULT 1,
+            company_slug TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          );
+          CREATE TABLE IF NOT EXISTS invoice_items (
+            id TEXT PRIMARY KEY, invoice_id TEXT NOT NULL, item_id TEXT, item_name TEXT,
+            quantity REAL NOT NULL DEFAULT 1, unit_price REAL NOT NULL DEFAULT 0,
+            total REAL NOT NULL DEFAULT 0, company_slug TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(invoice_id) REFERENCES invoices(id)
+          );
+          CREATE TABLE IF NOT EXISTS inventory (
+            id TEXT PRIMARY KEY, item_id TEXT NOT NULL, quantity REAL NOT NULL DEFAULT 0,
+            min_stock REAL DEFAULT 0, location TEXT, company_slug TEXT DEFAULT '',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(item_id) REFERENCES items(id)
+          );
+          CREATE TABLE IF NOT EXISTS inventory_movements (
+            id TEXT PRIMARY KEY, item_id TEXT NOT NULL,
+            type TEXT NOT NULL CHECK(type IN ('in','out','adjustment')),
+            quantity REAL NOT NULL, reference_type TEXT, reference_id TEXT, notes TEXT,
+            company_slug TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(item_id) REFERENCES items(id)
+          );
         `);
 
         db.exec(`CREATE INDEX IF NOT EXISTS idx_cash_company_slug ON cash_transactions(company_slug)`);
@@ -637,6 +703,12 @@ async function initCompanyDb(slug) {
         db.exec(`CREATE INDEX IF NOT EXISTS idx_invoices_company_slug ON invoices(company_slug)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_slug)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_items_company ON items(company_slug)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_item ON inventory(item_id)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_inventory_company ON inventory(company_slug)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_inv_movements_item ON inventory_movements(item_id)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_inv_movements_company ON inventory_movements(company_slug)`);
 
         try { db.exec("ALTER TABLE projects ADD COLUMN is_archived INTEGER DEFAULT 0"); } catch (e) {}
         try { db.exec("ALTER TABLE projects ADD COLUMN archive_reason TEXT"); } catch (e) {}
@@ -655,6 +727,14 @@ async function initCompanyDb(slug) {
         try { db.exec("ALTER TABLE salary_advances ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
         try { db.exec("ALTER TABLE payroll ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
         try { db.exec("ALTER TABLE invoices ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN customer_name TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN customer_phone TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN customer_address TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN notes TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN tax REAL DEFAULT 0"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN discount REAL DEFAULT 0"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN subtotal REAL DEFAULT 0"); } catch (e) {}
+        try { db.exec("ALTER TABLE invoices ADD COLUMN total_items INTEGER DEFAULT 0"); } catch (e) {}
         try { db.exec("ALTER TABLE notifications ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
         try { db.exec("ALTER TABLE cash_transactions ADD COLUMN company_slug TEXT DEFAULT ''"); } catch (e) {}
 
