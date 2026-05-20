@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useCompany } from '../contexts/CompanyContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Building2, Plus, Trash2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Building2, Plus, Trash2, ArrowDownCircle, ArrowUpCircle, Edit2, Copy, X } from 'lucide-react';
 
 const COMPANY_TABS = [
   { slug: 'printing', labelAr: 'المطبعة', labelEn: 'Printing', color: 'border-blue-500 text-blue-700 bg-blue-50' },
@@ -18,6 +18,7 @@ export default function Finances() {
   const [companyTab, setCompanyTab] = useState(isSuperAdmin ? 'combined' : activeCompany);
   const [summary, setSummary] = useState(null);
   const [tab, setTab] = useState('overview');
+  const [detailModal, setDetailModal] = useState(null);
 
   const hasPerm = (perm) => {
     if (!user || !user.permissions) return false;
@@ -89,42 +90,59 @@ export default function Finances() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div className="card">
+          <div className="card card-hover cursor-pointer" onClick={() => setDetailModal({ title: t('إيرادات الفواتير', 'Invoice Revenue'), value: summary.totalRevenue, items: [
+            { label: t('فواتير مبيع', 'Sale Invoices'), value: summary.totalRevenue },
+            { label: t('قيمة المشاريع', 'Project Value'), value: summary.projectRevenue },
+          ]})}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-green-50 text-green-600 flex items-center justify-center"><TrendingUp size="18" /></div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{summary.totalRevenue?.toLocaleString()}</p>
             <p className="text-sm text-gray-500">{t('إيرادات الفواتير', 'Invoice Revenue')}</p>
           </div>
-          <div className="card">
+          <div className="card card-hover cursor-pointer" onClick={() => setDetailModal({ title: t('مصاريف الفواتير', 'Invoice Expenses'), value: summary.totalExpenses, items: [
+            { label: t('فواتير شراء', 'Purchase Invoices'), value: summary.totalExpenses },
+          ]})}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center"><TrendingDown size="18" /></div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{summary.totalExpenses?.toLocaleString()}</p>
             <p className="text-sm text-gray-500">{t('مصاريف الفواتير', 'Invoice Expenses')}</p>
           </div>
-          <div className="card">
+          <div className="card card-hover cursor-pointer" onClick={() => setDetailModal({ title: t('المقبوضات النقدية', 'Cash In'), value: summary.cashIn, items: [
+            { label: t('مقبوضات نقدية', 'Cash Receipts'), value: summary.cashIn },
+          ]})}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><ArrowDownCircle size="18" /></div>
             </div>
             <p className="text-2xl font-bold text-emerald-700">{summary.cashIn?.toLocaleString()}</p>
             <p className="text-sm text-gray-500">{t('المقبوضات النقدية', 'Cash In')}</p>
           </div>
-          <div className="card">
+          <div className="card card-hover cursor-pointer" onClick={() => setDetailModal({ title: t('المدفوعات النقدية', 'Cash Out'), value: summary.cashOut, items: [
+            { label: t('مدفوعات نقدية', 'Cash Payments'), value: summary.cashOut },
+          ]})}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center"><ArrowUpCircle size="18" /></div>
             </div>
             <p className="text-2xl font-bold text-rose-700">{summary.cashOut?.toLocaleString()}</p>
             <p className="text-sm text-gray-500">{t('المدفوعات النقدية', 'Cash Out')}</p>
           </div>
-          <div className="card">
+          <div className="card card-hover cursor-pointer" onClick={() => setDetailModal({ title: t('قيمة المشاريع', 'Project Value'), value: summary.projectRevenue, items: [
+            { label: t('إجمالي قيمة المشاريع', 'Total Project Value'), value: summary.projectRevenue },
+          ]})}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center"><Building2 size="18" /></div>
             </div>
             <p className="text-2xl font-bold text-gray-800">{summary.projectRevenue?.toLocaleString()}</p>
             <p className="text-sm text-gray-500">{t('قيمة المشاريع', 'Project Value')}</p>
           </div>
-          <div className="card">
+          <div className="card card-hover cursor-pointer" onClick={() => setDetailModal({ title: t('صافي الرصيد', 'Net Balance'), value: summary.netBalance, items: [
+            { label: t('إيرادات الفواتير', 'Invoice Revenue'), value: summary.totalRevenue, color: 'text-green-600' },
+            { label: t('المقبوضات النقدية', 'Cash In'), value: summary.cashIn, color: 'text-emerald-600' },
+            { label: t('مصاريف الفواتير', 'Invoice Expenses'), value: summary.totalExpenses, color: 'text-red-600' },
+            { label: t('المدفوعات النقدية', 'Cash Out'), value: summary.cashOut, color: 'text-rose-600' },
+            { label: t('الرواتب', 'Payroll'), value: summary.payrollTotal, color: 'text-orange-600' },
+          ]})}>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center"><Wallet size="18" /></div>
             </div>
@@ -132,6 +150,27 @@ export default function Finances() {
               {summary.netBalance?.toLocaleString()}
             </p>
             <p className="text-sm text-gray-500">{t('صافي الرصيد', 'Net Balance')}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detailModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDetailModal(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-800">{detailModal.title}</h2>
+              <button onClick={() => setDetailModal(null)} className="p-1 hover:bg-gray-100 rounded"><X size="20" /></button>
+            </div>
+            <p className="text-3xl font-bold text-gray-800 mb-4">{detailModal.value?.toLocaleString()}</p>
+            <div className="space-y-2 border-t pt-3">
+              {detailModal.items.map((item, i) => (
+                <div key={i} className="flex justify-between items-center py-1">
+                  <span className="text-sm text-gray-600">{item.label}</span>
+                  <span className={`text-sm font-medium ${item.color || 'text-gray-800'}`}>{item.value?.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -268,6 +307,7 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
   const [invoices, setInvoices] = useState([]);
   const [filterType, setFilterType] = useState('');
   const [showForm, setShowForm] = useState(false);
+  const [editInvoice, setEditInvoice] = useState(null);
   const [form, setForm] = useState({ type: 'sale', invoice_number: '', vendor_client_name: '', amount: '', description: '', invoice_date: new Date().toISOString().split('T')[0] });
 
   const loadInvoices = (slug) => {
@@ -286,14 +326,55 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
     }
   }, [companySlug, filterType, isCombined]);
 
+  const resetForm = () => {
+    setForm({ type: 'sale', invoice_number: '', vendor_client_name: '', amount: '', description: '', invoice_date: new Date().toISOString().split('T')[0] });
+    setEditInvoice(null);
+  };
+
+  const openNew = () => {
+    resetForm();
+    setShowForm(true);
+  };
+
+  const openEdit = (inv) => {
+    setEditInvoice(inv);
+    setForm({
+      type: inv.type,
+      invoice_number: inv.invoice_number || '',
+      vendor_client_name: inv.vendor_client_name,
+      amount: String(inv.amount),
+      description: inv.description || '',
+      invoice_date: inv.invoice_date || new Date().toISOString().split('T')[0],
+    });
+    setShowForm(true);
+  };
+
+  const openDuplicate = (inv) => {
+    setEditInvoice(null);
+    setForm({
+      type: inv.type,
+      invoice_number: '',
+      vendor_client_name: inv.vendor_client_name,
+      amount: String(inv.amount),
+      description: inv.description || '',
+      invoice_date: new Date().toISOString().split('T')[0],
+    });
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const slug = isCombined ? 'printing' : companySlug;
     try {
-      await api.post(`/finances/${slug}/invoices`, form);
+      if (editInvoice) {
+        await api.put(`/finances/${slug || companySlug}/invoices/${editInvoice.id}`, form);
+      } else {
+        await api.post(`/finances/${slug}/invoices`, form);
+      }
       setShowForm(false);
-      setForm({ type: 'sale', invoice_number: '', vendor_client_name: '', amount: '', description: '', invoice_date: new Date().toISOString().split('T')[0] });
-      isCombined ? setInvoices(prev => [...prev, { ...form, _company: slug, id: 'temp_' + Date.now() }]) : loadInvoices(companySlug);
+      resetForm();
+      if (isCombined) loadInvoices(companyTab === 'combined' ? 'printing' : companyTab);
+      else loadInvoices(companySlug);
     } catch (err) { alert(t('فشل', 'Failed')); }
   };
 
@@ -313,7 +394,7 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
             <option value="purchase">{t('شراء', 'Purchase')}</option>
           </select>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary text-sm py-1.5">
+        <button onClick={openNew} className="btn-primary text-sm py-1.5">
           <Plus size="16" className="inline me-1" />{t('فاتورة جديدة', 'New Invoice')}
         </button>
       </div>
@@ -327,7 +408,7 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('الطرف', 'Party')}</th>
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('المبلغ', 'Amount')}</th>
               <th className="text-right py-2 px-2 font-medium text-gray-600">{t('التاريخ', 'Date')}</th>
-              <th className="text-center py-2 px-2 font-medium text-gray-600">{t('حذف', 'Delete')}</th>
+              <th className="text-center py-2 px-2 font-medium text-gray-600">{t('إجراءات', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -350,7 +431,11 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
                 <td className="py-2 px-2 font-bold">{inv.amount?.toLocaleString()}</td>
                 <td className="py-2 px-2 text-gray-500">{inv.invoice_date || '-'}</td>
                 <td className="py-2 px-2 text-center">
-                  <button onClick={() => handleDelete(inv.id, inv._company)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600"><Trash2 size="14" /></button>
+                  <div className="flex items-center justify-center gap-1">
+                    <button onClick={() => openEdit(inv)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title={t('تعديل', 'Edit')}><Edit2 size="14" /></button>
+                    <button onClick={() => openDuplicate(inv)} className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600" title={t('تكرار', 'Duplicate')}><Copy size="14" /></button>
+                    <button onClick={() => handleDelete(inv.id, inv._company)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title={t('حذف', 'Delete')}><Trash2 size="14" /></button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -362,9 +447,9 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowForm(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => { setShowForm(false); resetForm(); }}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-semibold mb-4">{t('فاتورة جديدة', 'New Invoice')}</h2>
+            <h2 className="text-lg font-semibold mb-4">{editInvoice ? t('تعديل فاتورة', 'Edit Invoice') : t('فاتورة جديدة', 'New Invoice')}</h2>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -381,8 +466,8 @@ function InvoicesTab({ companySlug, lang, t, isCombined }) {
               <div><label className="label">{t('الوصف', 'Description')}</label><textarea className="input" rows="2" value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} /></div>
               <div><label className="label">{t('التاريخ', 'Date')}</label><input type="date" className="input" value={form.invoice_date} onChange={(e) => setForm({...form, invoice_date: e.target.value})} /></div>
               <div className="flex gap-2 pt-2">
-                <button type="submit" className="btn-primary flex-1">{t('إضافة', 'Add')}</button>
-                <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">{t('إلغاء', 'Cancel')}</button>
+                <button type="submit" className="btn-primary flex-1">{editInvoice ? t('تحديث', 'Update') : t('إضافة', 'Add')}</button>
+                <button type="button" onClick={() => { setShowForm(false); resetForm(); }} className="btn-secondary">{t('إلغاء', 'Cancel')}</button>
               </div>
             </form>
           </div>

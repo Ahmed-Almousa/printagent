@@ -58,6 +58,21 @@ router.post('/:companySlug/invoices', authenticate, companyAccess, async (req, r
   } catch (err) { console.error('finances error:', err); res.status(500).json({ error: err.message }); }
 });
 
+router.put('/:companySlug/invoices/:id', authenticate, companyAccess, async (req, res) => {
+  try {
+  const db = getCompanyDb(req.params.companySlug);
+  const { type, invoice_number, vendor_client_name, amount, description, invoice_date } = req.body;
+  await db.prepare(`UPDATE invoices SET
+    type = COALESCE(?,type), invoice_number = COALESCE(?,invoice_number),
+    vendor_client_name = COALESCE(?,vendor_client_name), amount = COALESCE(?,amount),
+    description = COALESCE(?,description), invoice_date = COALESCE(?,invoice_date)
+    WHERE id = ? AND company_slug = ?`)
+    .run(type || null, invoice_number || null, vendor_client_name || null, amount != null ? amount : null, description || null, invoice_date || null, req.params.id, req.params.companySlug);
+  const invoice = await db.prepare('SELECT * FROM invoices WHERE id = ? AND company_slug = ?').get(req.params.id, req.params.companySlug);
+  res.json(invoice);
+  } catch (err) { console.error('finances error:', err); res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/:companySlug/invoices/:id', authenticate, companyAccess, async (req, res) => {
   try {
   const db = getCompanyDb(req.params.companySlug);
