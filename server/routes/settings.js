@@ -19,12 +19,12 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 2 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'].includes(file.mimetype)) {
+    if (['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff', 'image/x-icon'].includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed (JPEG, PNG, GIF, WebP, SVG)'));
+      cb(new Error('Only image files are allowed (JPG, PNG, GIF, WebP, SVG, BMP, TIFF)'));
     }
   }
 });
@@ -56,22 +56,27 @@ router.put('/:companySlug/company', authenticate, companyAccess, async (req, res
   } catch (err) { console.error('settings error:', err); res.status(500).json({ error: err.message }); }
 });
 
-router.post('/:companySlug/company/logo', authenticate, companyAccess, (req, res) => {
-  upload.single('logo')(req, res, async (err) => {
+router.post('/:companySlug/company/logo', authenticate, companyAccess, (req, res, next) => {
+  upload.single('logo')(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'No file provided' });
-    try {
-      if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
-      const masterDb = getMasterDb();
-      const old = await masterDb.prepare('SELECT logo_url FROM companies WHERE slug = ?').get(req.params.companySlug);
-      const logoUrl = '/uploads/' + req.file.filename;
-      await masterDb.prepare('UPDATE companies SET logo_url = ? WHERE slug = ?').run(logoUrl, req.params.companySlug);
-      if (old?.logo_url) {
-        const oldPath = path.join(uploadsDir, path.basename(old.logo_url));
-        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    (async () => {
+      try {
+        if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
+        const masterDb = getMasterDb();
+        const old = await masterDb.prepare('SELECT logo_url FROM companies WHERE slug = ?').get(req.params.companySlug);
+        const logoUrl = '/uploads/' + req.file.filename;
+        await masterDb.prepare('UPDATE companies SET logo_url = ? WHERE slug = ?').run(logoUrl, req.params.companySlug);
+        if (old?.logo_url) {
+          const oldPath = path.join(uploadsDir, path.basename(old.logo_url));
+          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        }
+        res.json({ logo_url: logoUrl });
+      } catch (e) {
+        console.error('logo upload error:', e);
+        if (!res.headersSent) res.status(500).json({ error: e.message || 'Upload failed' });
       }
-      res.json({ logo_url: logoUrl });
-    } catch (e) { console.error('logo upload error:', e); res.status(500).json({ error: e.message }); }
+    })();
   });
 });
 

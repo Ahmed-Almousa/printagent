@@ -57,17 +57,25 @@ export default function Dashboard() {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('logo', file);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       const res = await fetch(`/api/settings/${activeCompany}/company/logo`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
+        body: formData,
+        signal: controller.signal
       });
+      clearTimeout(timeout);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || t('فشل الرفع', 'Upload failed'));
       setCompany(prev => ({ ...prev, logo_url: data.logo_url }));
       toast.success(t('تم رفع الشعار', 'Logo uploaded'));
     } catch (err) {
-      toast.error(err.message || t('فشل الرفع', 'Upload failed'));
+      if (err.name === 'AbortError') {
+        toast.error(t('انتهت المهلة', 'Request timed out'));
+      } else {
+        toast.error(err.message || t('فشل الرفع', 'Upload failed'));
+      }
     } finally {
       setUploading(false);
     }
@@ -75,11 +83,16 @@ export default function Dashboard() {
 
   const handleLogoRemove = async () => {
     try {
-      await api.delete(`/settings/${activeCompany}/company/logo`);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/settings/${activeCompany}/company/logo`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       setCompany(prev => ({ ...prev, logo_url: null }));
       toast.success(t('تم حذف الشعار', 'Logo removed'));
     } catch (err) {
-      toast.error(err.response?.data?.error || t('فشل الحذف', 'Delete failed'));
+      toast.error(err.message || t('فشل الحذف', 'Delete failed'));
     }
   };
 
