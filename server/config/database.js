@@ -441,16 +441,16 @@ async function initCompanyDb(slug) {
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_cash_company_created ON cash_transactions(company_slug, created_at)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_company_slug ON tasks(company_slug)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)`);
-        await d.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_assigned_user ON tasks(assigned_to)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_projects_company_slug ON projects(company_slug)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_project_comments_task ON task_comments(task_id)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_employees_company_slug ON employees(company_slug)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_attendance_company_slug ON attendance(company_slug)`);
-        await d.exec(`CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance(employee_id)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_attendance_user ON attendance(user_id)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_leave_company_slug ON leave_requests(company_slug)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_advances_company_slug ON salary_advances(company_slug)`);
-        await d.exec(`CREATE INDEX IF NOT EXISTS idx_finances_company_slug ON finances(company_slug)`);
+        await d.exec(`CREATE INDEX IF NOT EXISTS idx_invoices_company_slug ON invoices(company_slug)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)`);
         await d.exec(`CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_slug)`);
 
@@ -625,16 +625,16 @@ async function initCompanyDb(slug) {
         db.exec(`CREATE INDEX IF NOT EXISTS idx_cash_company_created ON cash_transactions(company_slug, created_at)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_company_slug ON tasks(company_slug)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tasks(project_id)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_assigned_user ON tasks(assigned_to)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON tasks(assignee_id)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_company_slug ON projects(company_slug)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_projects_created_at ON projects(created_at)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_project_comments_task ON task_comments(task_id)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_employees_company_slug ON employees(company_slug)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_attendance_company_slug ON attendance(company_slug)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance(employee_id)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_attendance_user ON attendance(user_id)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_leave_company_slug ON leave_requests(company_slug)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_advances_company_slug ON salary_advances(company_slug)`);
-        db.exec(`CREATE INDEX IF NOT EXISTS idx_finances_company_slug ON finances(company_slug)`);
+        db.exec(`CREATE INDEX IF NOT EXISTS idx_invoices_company_slug ON invoices(company_slug)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id)`);
         db.exec(`CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_slug)`);
 
