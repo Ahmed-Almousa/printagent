@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useCompany } from '../contexts/CompanyContext';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 import {
   Building2, Moon, Sun, Coins, Shield, Type, Plus, Edit3, Trash2, Save, Eye, EyeOff,
-  Globe, MapPin, Phone, User, Mail, KeyRound, RefreshCw, DollarSign, CheckCircle, X, Loader2
+  Globe, MapPin, Phone, User, Mail, KeyRound, RefreshCw, DollarSign, CheckCircle, X, Loader2,
+  Camera
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -62,6 +63,9 @@ function CompanySettings({ activeCompany, lang }) {
     name: '', phone: '', address: '', owner_name: '', tax_number: ''
   });
   const [loading, setLoading] = useState(true);
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const logoInputRef = useRef(null);
 
   useEffect(() => {
     api.get(`/settings/${activeCompany}/company`).then(({ data }) => {
@@ -72,6 +76,7 @@ function CompanySettings({ activeCompany, lang }) {
         owner_name: data.owner_name || '',
         tax_number: data.tax_number || ''
       });
+      setLogoUrl(data.logo_url || null);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [activeCompany]);
 
@@ -85,6 +90,33 @@ function CompanySettings({ activeCompany, lang }) {
     }
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('logo', file);
+      const { data } = await api.post(`/settings/${activeCompany}/company/logo`, formData);
+      setLogoUrl(data.logo_url);
+      toast.success(t('تم رفع الشعار', 'Logo uploaded'));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('فشل الرفع', 'Upload failed'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleLogoRemove = async () => {
+    try {
+      await api.delete(`/settings/${activeCompany}/company/logo`);
+      setLogoUrl(null);
+      toast.success(t('تم حذف الشعار', 'Logo removed'));
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('فشل الحذف', 'Delete failed'));
+    }
+  };
+
   if (loading) return <div className="card"><div className="flex items-center justify-center py-12"><Loader2 size="24" className="animate-spin text-gray-400" /></div></div>;
 
   return (
@@ -93,6 +125,37 @@ function CompanySettings({ activeCompany, lang }) {
         <Building2 size="18" className="text-primary-600" />
         {t('بيانات الشركة', 'Company Information')}
       </h2>
+
+      <div className="mb-6 p-4 bg-gray-50 rounded-lg flex items-center gap-4">
+        <div className="relative group">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-300 bg-white">
+            {logoUrl ? (
+              <img src={logoUrl} alt="logo" className="w-full h-full object-cover" />
+            ) : (
+              <Building2 size="32" className="text-gray-400" />
+            )}
+          </div>
+          <input type="file" ref={logoInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+          <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+            onClick={() => logoInputRef.current?.click()}>
+            {uploading ? (
+              <Loader2 size="18" className="animate-spin text-white" />
+            ) : (
+              <Camera size="18" className="text-white" />
+            )}
+          </div>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-700">{t('شعار الشركة', 'Company Logo')}</p>
+          <p className="text-xs text-gray-500">{t('اضغط على الصورة لتغيير الشعار', 'Click the image to change the logo')}</p>
+        </div>
+        {logoUrl && (
+          <button onClick={handleLogoRemove} className="btn-secondary text-sm flex items-center gap-1">
+            <Trash2 size="14" /> {t('حذف', 'Remove')}
+          </button>
+        )}
+      </div>
+
       <form onSubmit={handleSave} className="space-y-4 max-w-xl">
         <div>
           <label className="label">{t('اسم الشركة', 'Company Name')}</label>

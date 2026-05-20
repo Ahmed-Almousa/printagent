@@ -242,18 +242,17 @@ async function initMasterDb() {
           await d.prepare("INSERT INTO users (id, username, password, full_name, email, role, company_id, permissions) VALUES ($1,$2,$3,$4,$5,'manager',$6,$7)").run('u_adv_mgr', 'mgr_adv', hash, 'مدير الوكالة', 'mgr_adv@printagent.com', 'comp_advertising', allPerms);
           await d.prepare("INSERT INTO users (id, username, password, full_name, email, role, company_id, permissions) VALUES ($1,$2,$3,$4,$5,'employee',$6,$7)").run('u_emp1', 'emp1', hash, 'موظف 1', 'emp1@printagent.com', 'comp_printing', 'dashboard.view,tasks.view,tasks.edit,attendance.clock,leave.view_own,leave.request,advances.view_own,advances.request,chat.view,chat.send,notifications.view');
           await d.prepare("INSERT INTO users (id, username, password, full_name, email, role, company_id, permissions) VALUES ($1,$2,$3,$4,$5,'employee',$6,$7)").run('u_emp2', 'emp2', hash, 'موظف 2', 'emp2@printagent.com', 'comp_advertising', 'dashboard.view,tasks.view,tasks.edit,attendance.clock,leave.view_own,leave.request,advances.view_own,advances.request,chat.view,chat.send,notifications.view');
-        } else {
-          await d.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0");
-          await d.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS phone TEXT");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS address TEXT");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS owner_name TEXT");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'SAR'");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS currency_rate DOUBLE PRECISION DEFAULT 1.0");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'SA'");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_number TEXT");
-          await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_url TEXT");
         }
+        await d.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0");
+        await d.exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS phone TEXT");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS address TEXT");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS owner_name TEXT");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'SAR'");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS currency_rate DOUBLE PRECISION DEFAULT 1.0");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'SA'");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS tax_number TEXT");
+        await d.exec("ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo_url TEXT");
 
         return d;
       })()
@@ -304,18 +303,17 @@ async function initMasterDb() {
           db.prepare('INSERT INTO users (id, username, password, full_name, email, role, company_id, permissions) VALUES (?,?,?,?,?,?,?,?)').run('u_adv_mgr', 'mgr_adv', hash, 'مدير الوكالة', 'mgr_adv@printagent.com', 'manager', 'comp_advertising', allPerms);
           db.prepare('INSERT INTO users (id, username, password, full_name, email, role, company_id, permissions) VALUES (?,?,?,?,?,?,?,?)').run('u_emp1', 'emp1', hash, 'موظف 1', 'emp1@printagent.com', 'employee', 'comp_printing', 'dashboard.view,tasks.view,tasks.edit,attendance.clock,leave.view_own,leave.request,advances.view_own,advances.request,chat.view,chat.send,notifications.view');
           db.prepare('INSERT INTO users (id, username, password, full_name, email, role, company_id, permissions) VALUES (?,?,?,?,?,?,?,?)').run('u_emp2', 'emp2', hash, 'موظف 2', 'emp2@printagent.com', 'employee', 'comp_advertising', 'dashboard.view,tasks.view,tasks.edit,attendance.clock,leave.view_own,leave.request,advances.view_own,advances.request,chat.view,chat.send,notifications.view');
-        } else {
-          try { db.exec("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0"); } catch (e) {}
-          try { db.exec("ALTER TABLE users ADD COLUMN permissions TEXT"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN phone TEXT"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN address TEXT"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN owner_name TEXT"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN currency TEXT DEFAULT 'SAR'"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN currency_rate REAL DEFAULT 1.0"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN country TEXT DEFAULT 'SA'"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN tax_number TEXT"); } catch (e) {}
-          try { db.exec("ALTER TABLE companies ADD COLUMN logo_url TEXT"); } catch (e) {}
         }
+        try { db.exec("ALTER TABLE users ADD COLUMN token_version INTEGER DEFAULT 0"); } catch (e) {}
+        try { db.exec("ALTER TABLE users ADD COLUMN permissions TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN phone TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN address TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN owner_name TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN currency TEXT DEFAULT 'SAR'"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN currency_rate REAL DEFAULT 1.0"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN country TEXT DEFAULT 'SA'"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN tax_number TEXT"); } catch (e) {}
+        try { db.exec("ALTER TABLE companies ADD COLUMN logo_url TEXT"); } catch (e) {}
 
         return new SqliteDatabase(db);
       })();

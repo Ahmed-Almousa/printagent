@@ -56,9 +56,7 @@ export default function Dashboard() {
     try {
       const formData = new FormData();
       formData.append('logo', file);
-      const { data } = await api.post(`/settings/${activeCompany}/company/logo`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      const { data } = await api.post(`/settings/${activeCompany}/company/logo`, formData);
       setCompany(prev => ({ ...prev, logo_url: data.logo_url }));
       toast.success(t('تم رفع الشعار', 'Logo uploaded'));
     } catch (err) {
