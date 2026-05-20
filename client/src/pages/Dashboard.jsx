@@ -54,13 +54,20 @@ export default function Dashboard() {
     if (!file) return;
     setUploading(true);
     try {
+      const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('logo', file);
-      const { data } = await api.post(`/settings/${activeCompany}/company/logo`, formData);
+      const res = await fetch(`/api/settings/${activeCompany}/company/logo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
       setCompany(prev => ({ ...prev, logo_url: data.logo_url }));
       toast.success(t('تم رفع الشعار', 'Logo uploaded'));
     } catch (err) {
-      toast.error(err.response?.data?.error || t('فشل الرفع', 'Upload failed'));
+      toast.error(err.message || t('فشل الرفع', 'Upload failed'));
     } finally {
       setUploading(false);
     }
