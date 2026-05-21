@@ -466,7 +466,7 @@ function InvoiceFormModal({ show, onClose, onSaved, companySlug, lang, t, invoic
     setSaving(true);
     const body = {
       type: form.type,
-      vendor_client_name: form.vendor_client_name,
+      customer_name: form.vendor_client_name,
       customer_phone: form.customer_phone,
       customer_address: form.customer_address,
       invoice_date: form.invoice_date,
