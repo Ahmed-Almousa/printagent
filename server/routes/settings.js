@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { getMasterDb, getCompanyDb } from '../config/database.js';
 import { authenticate, companyAccess } from '../middleware/auth.js';
-import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -9,25 +8,6 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `logo_${req.params.companySlug}_${Date.now()}${ext}`);
-  }
-});
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff', 'image/x-icon'].includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed (JPG, PNG, GIF, WebP, SVG, BMP, TIFF)'));
-    }
-  }
-});
 
 const router = Router();
 
@@ -56,28 +36,34 @@ router.put('/:companySlug/company', authenticate, companyAccess, async (req, res
   } catch (err) { console.error('settings error:', err); res.status(500).json({ error: err.message }); }
 });
 
-router.post('/:companySlug/company/logo', authenticate, companyAccess, (req, res, next) => {
-  upload.single('logo')(req, res, (err) => {
-    if (err) return res.status(400).json({ error: err.message });
-    if (!req.file) return res.status(400).json({ error: 'No file provided' });
-    (async () => {
-      try {
-        if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
-        const masterDb = getMasterDb();
-        const old = await masterDb.prepare('SELECT logo_url FROM companies WHERE slug = ?').get(req.params.companySlug);
-        const logoUrl = '/uploads/' + req.file.filename;
-        await masterDb.prepare('UPDATE companies SET logo_url = ? WHERE slug = ?').run(logoUrl, req.params.companySlug);
-        if (old?.logo_url) {
-          const oldPath = path.join(uploadsDir, path.basename(old.logo_url));
-          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-        }
-        res.json({ logo_url: logoUrl });
-      } catch (e) {
-        console.error('logo upload error:', e);
-        if (!res.headersSent) res.status(500).json({ error: e.message || 'Upload failed' });
-      }
-    })();
-  });
+router.post('/:companySlug/company/logo', authenticate, companyAccess, async (req, res) => {
+  try {
+    if (req.user.role === 'employee') return res.status(403).json({ error: 'Not authorized' });
+    const { image } = req.body;
+    if (!image || typeof image !== 'string' || !image.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'Valid image data is required (base64 data URL)' });
+    }
+    const matches = image.match(/^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml|bmp|tiff);base64,(.+)$/i);
+    if (!matches) return res.status(400).json({ error: 'Unsupported image format' });
+    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1] === 'svg+xml' ? 'svg' : matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    if (buffer.length > 5 * 1024 * 1024) return res.status(400).json({ error: 'Image too large (max 5MB)' });
+    const filename = `logo_${req.params.companySlug}_${Date.now()}.${ext}`;
+    const filepath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filepath, buffer);
+    const logoUrl = '/uploads/' + filename;
+    const masterDb = getMasterDb();
+    const old = await masterDb.prepare('SELECT logo_url FROM companies WHERE slug = ?').get(req.params.companySlug);
+    await masterDb.prepare('UPDATE companies SET logo_url = ? WHERE slug = ?').run(logoUrl, req.params.companySlug);
+    if (old?.logo_url) {
+      const oldPath = path.join(uploadsDir, path.basename(old.logo_url));
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+    res.json({ logo_url: logoUrl });
+  } catch (e) {
+    console.error('logo upload error:', e);
+    res.status(500).json({ error: e.message || 'Upload failed' });
+  }
 });
 
 router.delete('/:companySlug/company/logo', authenticate, companyAccess, async (req, res) => {

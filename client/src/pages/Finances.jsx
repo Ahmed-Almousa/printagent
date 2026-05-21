@@ -283,7 +283,7 @@ function InvoiceListTab({ type, companySlug, isCombined, lang, t }) {
       <button onClick={() => setDetailInvoice(inv)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title={t('عرض', 'View')}><FileText size="14" /></button>
       <button onClick={() => { setEditInvoice(inv); setShowForm(true); }} className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600" title={t('تعديل', 'Edit')}><Edit3 size="14" /></button>
       <button onClick={() => handleDelete(inv.id, inv._company)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title={t('حذف', 'Delete')}><Trash2 size="14" /></button>
-      <button onClick={() => generatePDF(inv, inv.items || [], lang, t)} className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" title={t('طباعة', 'Print')}><Printer size="14" /></button>
+      <button onClick={() => generatePDF(inv, inv.items || [], lang, t, inv._company || companySlug)} className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" title={t('طباعة', 'Print')}><Printer size="14" /></button>
     </div>
   );
 
@@ -368,6 +368,7 @@ function InvoiceListTab({ type, companySlug, isCombined, lang, t }) {
           onClose={() => setDetailInvoice(null)}
           lang={lang}
           t={t}
+          companySlug={detailInvoice._company || companySlug}
         />
       )}
     </div>
@@ -619,7 +620,7 @@ function InvoiceFormModal({ show, onClose, onSaved, companySlug, lang, t, invoic
   );
 }
 
-function InvoiceDetailModal({ invoice, onClose, lang, t }) {
+function InvoiceDetailModal({ invoice, onClose, lang, t, companySlug }) {
   if (!invoice) return null;
   const items = invoice.items || [];
   const subtotal = items.reduce((s, i) => s + Number(i.total || 0), 0);
@@ -708,7 +709,7 @@ function InvoiceDetailModal({ invoice, onClose, lang, t }) {
         )}
 
         <div className="flex gap-2 mt-4">
-          <button onClick={() => generatePDF(invoice, items, lang, t)} className="btn-primary flex-1">
+          <button onClick={() => generatePDF(invoice, items, lang, t, companySlug)} className="btn-primary flex-1">
             <Printer size="16" className="inline me-1" /> {t('طباعة PDF', 'Print PDF')}
           </button>
           <button onClick={onClose} className="btn-secondary">{t('إغلاق', 'Close')}</button>
@@ -1355,57 +1356,181 @@ function ReportsTab({ companySlug, lang, t, isCombined }) {
   );
 }
 
-function generatePDF(invoice, items, lang, t) {
-  const doc = new jsPDF();
+async function generatePDF(invoice, items, lang, t, companySlug) {
+  const doc = new jsPDF('p', 'mm', 'a4');
   const isRtl = lang === 'ar';
-  const rtlText = (ar, en) => isRtl ? ar : en;
+  const pgW = 210;
+  const margin = 14;
+  const contentW = pgW - margin * 2;
 
-  doc.setFontSize(18);
-  doc.text(rtlText('فاتورة', 'INVOICE'), isRtl ? 196 : 14, 20, { align: isRtl ? 'right' : 'left' });
+  let company = { name: '', address: '', phone: '', logo_url: '' };
+  try {
+    const token = localStorage.getItem('token');
+    if (companySlug) {
+      const res = await fetch(`/api/settings/${companySlug}/company`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) company = await res.json();
+    }
+  } catch (e) {}
 
-  doc.setFontSize(10);
-  doc.text(rtlText(`رقم: ${invoice.invoice_number || '-'}`, `#${invoice.invoice_number || '-'}`), isRtl ? 196 : 14, 30, { align: isRtl ? 'right' : 'left' });
-  doc.text(rtlText(`التاريخ: ${invoice.invoice_date}`, `Date: ${invoice.invoice_date}`), isRtl ? 196 : 14, 36, { align: isRtl ? 'right' : 'left' });
-  doc.text(rtlText(`العميل: ${invoice.vendor_client_name}`, `Customer: ${invoice.vendor_client_name}`), isRtl ? 196 : 14, 42, { align: isRtl ? 'right' : 'left' });
+  const isPrinting = companySlug === 'printing';
+  const coName = company.name || (isPrinting ? 'المطبعة' : 'الوكالة الإعلانية');
+  const coAddr = company.address || '';
+  const coPhone = company.phone || '';
+  const services = isPrinting
+    ? 'طباعة تجارية - دعاية وإعلان - تصميم جرافيك - تغليف وتشطيب'
+    : 'إعلانات - تسويق رقمي - تصميم - تنظيم فعاليات';
 
-  const tableData = (items || []).map((item, idx) => [
-    idx + 1,
-    item.item_name,
-    Number(item.quantity).toLocaleString(),
-    Number(item.unit_price).toLocaleString(),
-    Number(item.total).toLocaleString(),
-  ]);
+  let y = margin;
 
-  doc.autoTable({
-    startY: 50,
-    head: [[rtlText('#', '#'), rtlText('الصنف', 'Item'), rtlText('الكمية', 'Qty'), rtlText('سعر الوحدة', 'Unit Price'), rtlText('الإجمالي', 'Total')]],
-    body: tableData,
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 3, halign: isRtl ? 'right' : 'left' },
-    headStyles: { fillColor: [59, 130, 246] },
+  if (company.logo_url) {
+    try {
+      const imgRes = await fetch(company.logo_url, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+      const blob = await imgRes.blob();
+      const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+      doc.addImage(b64, 'PNG', isRtl ? pgW - margin - 22 : margin, y, 22, 22);
+    } catch (e) {}
+  }
+
+  doc.setFontSize(20);
+  doc.setFont(undefined, 'bold');
+  doc.text(coName, isRtl ? pgW - margin - (company.logo_url ? 30 : 0) : margin + (company.logo_url ? 30 : 0), y + 8, { align: isRtl ? 'right' : 'left' });
+
+  doc.setFont(undefined, 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(100);
+  if (services) doc.text(services, isRtl ? pgW - margin : margin, y + 15, { align: isRtl ? 'right' : 'left' });
+  if (coAddr) doc.text(coAddr, isRtl ? pgW - margin : margin, y + 21, { align: isRtl ? 'right' : 'left' });
+  if (coPhone) doc.text(t('هاتف:', 'Tel:') + ' ' + coPhone, isRtl ? pgW - margin : margin, y + 27, { align: isRtl ? 'right' : 'left' });
+
+  doc.setDrawColor(59, 130, 246);
+  doc.setLineWidth(0.8);
+  doc.line(margin, y + 32, pgW - margin, y + 32);
+
+  y = y + 38;
+
+  doc.setFontSize(16);
+  doc.setFont(undefined, 'bold');
+  doc.setTextColor(30);
+  doc.text(t('فاتورة', 'INVOICE'), isRtl ? pgW - margin : margin, y, { align: isRtl ? 'right' : 'left' });
+
+  y += 8;
+  doc.setFontSize(9);
+  doc.setFont(undefined, 'normal');
+  doc.setTextColor(80);
+
+  const invInfo = [
+    [t('رقم الفاتورة:', 'Invoice #:'), invoice.invoice_number || '-'],
+    [t('التاريخ:', 'Date:'), invoice.invoice_date || '-'],
+  ];
+
+  const invX = isRtl ? margin : pgW / 2 + 5;
+  invInfo.forEach(([label, val], i) => {
+    doc.setFont(undefined, 'bold');
+    doc.text(label, isRtl ? pgW - margin : invX, y + i * 5, { align: isRtl ? 'right' : 'left' });
+    doc.setFont(undefined, 'normal');
+    doc.text(val, isRtl ? pgW - margin - 40 : invX + 40, y + i * 5, { align: isRtl ? 'right' : 'left' });
   });
 
-  const finalY = doc.lastAutoTable.finalY + 10;
+  const custX = isRtl ? pgW / 2 + 5 : margin;
+  doc.setFont(undefined, 'bold');
+  doc.text(t('معلومات العميل:', 'Customer:'), isRtl ? pgW - margin : custX, y, { align: isRtl ? 'right' : 'left' });
+  doc.setFont(undefined, 'normal');
+  doc.text(invoice.vendor_client_name || '-', isRtl ? pgW - margin - 50 : custX + 50, y, { align: isRtl ? 'right' : 'left' });
+  if (invoice.customer_phone) doc.text(t('هاتف:', 'Phone:') + ' ' + invoice.customer_phone, isRtl ? pgW - margin : custX, y + 5, { align: isRtl ? 'right' : 'left' });
+  if (invoice.customer_address) doc.text(t('عنوان:', 'Address:') + ' ' + invoice.customer_address, isRtl ? pgW - margin : custX, y + 10, { align: isRtl ? 'right' : 'left' });
+
+  y += Math.max(invInfo.length * 5 + 5, (invoice.customer_address ? 15 : 8));
+
+  doc.setDrawColor(200);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pgW - margin, y);
+  y += 6;
+
+  const tableColumns = [
+    { header: t('#', '#'), dataKey: 'idx' },
+    { header: t('البيان', 'Description'), dataKey: 'name' },
+    { header: t('الكمية', 'Qty'), dataKey: 'qty' },
+    { header: t('سعر الوحدة', 'Unit Price'), dataKey: 'price' },
+    { header: t('الإجمالي', 'Total'), dataKey: 'total' },
+  ];
+
+  const tableData = (items || []).map((item, idx) => ({
+    idx: String(idx + 1),
+    name: item.item_name || item.name || '-',
+    qty: Number(item.quantity).toLocaleString(),
+    price: Number(item.unit_price || item.rate || 0).toLocaleString(),
+    total: Number(item.total || (Number(item.quantity) * Number(item.unit_price))).toLocaleString(),
+  }));
+
+  doc.autoTable({
+    columns: tableColumns,
+    body: tableData,
+    startY: y,
+    theme: 'grid',
+    styles: { fontSize: 9, cellPadding: 4, halign: isRtl ? 'right' : 'left', lineColor: [200, 200, 200] },
+    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+    columnStyles: {
+      idx: { cellWidth: 10, halign: 'center' },
+      qty: { halign: 'center' },
+      price: { halign: isRtl ? 'left' : 'right' },
+      total: { halign: isRtl ? 'left' : 'right', fontStyle: 'bold' },
+    },
+  });
+
+  y = doc.lastAutoTable.finalY + 8;
+
   const subtotal = items.reduce((s, i) => s + Number(i.total || 0), 0);
-  const taxAmount = Number(invoice.tax || 0) > 0 ? (subtotal * Number(invoice.tax) / 100) : Number(invoice.tax_amount || 0);
+  const taxPct = Number(invoice.tax || 0);
+  const taxAmount = taxPct > 0 ? (subtotal * taxPct / 100) : Number(invoice.tax_amount || 0);
   const discount = Number(invoice.discount || 0);
   const grandTotal = Number(invoice.grand_total || (subtotal + taxAmount - discount));
 
-  const totals = [
-    [rtlText('المجموع', 'Subtotal'), subtotal.toLocaleString()],
-    [rtlText('الضريبة', 'Tax'), taxAmount.toLocaleString()],
-    [rtlText('الخصم', 'Discount'), discount.toLocaleString()],
-    [rtlText('الإجمالي النهائي', 'Grand Total'), grandTotal.toLocaleString()],
+  const totalX = isRtl ? margin : pgW / 2;
+  const totalX2 = isRtl ? pgW / 2 : margin;
+  const col1W = 40;
+  const col2W = 50;
+
+  const totalLines = [
+    { label: t('المجموع:', 'Subtotal:'), val: subtotal.toLocaleString() + ' ' + (company.currency || 'SAR') },
+    { label: t('الضريبة:', 'Tax:'), val: taxPct > 0 ? `${taxPct}% = ${taxAmount.toLocaleString()}` : taxAmount.toLocaleString() },
+    { label: t('الخصم:', 'Discount:'), val: '- ' + discount.toLocaleString() },
+    { label: t('الإجمالي النهائي:', 'Grand Total:'), val: grandTotal.toLocaleString() + ' ' + (company.currency || 'SAR'), bold: true, color: [59, 130, 246] },
   ];
 
-  doc.autoTable({
-    startY: finalY,
-    head: [[rtlText('البيان', 'Description'), rtlText('القيمة', 'Value')]],
-    body: totals,
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 3, halign: isRtl ? 'right' : 'left' },
-    headStyles: { fillColor: [107, 114, 128] },
+  totalLines.forEach((ln, i) => {
+    const ly = y + i * 7;
+    doc.setFont(undefined, ln.bold ? 'bold' : 'normal');
+    doc.setTextColor(...(ln.color || [60, 60, 60]));
+    doc.setFontSize(ln.bold ? 12 : 10);
+    doc.text(ln.label, isRtl ? pgW - margin - col1W : totalX, ly, { align: isRtl ? 'right' : 'left' });
+    doc.text(ln.val, isRtl ? pgW - margin : totalX + col1W, ly, { align: isRtl ? 'left' : 'right' });
   });
+
+  y += totalLines.length * 7 + 10;
+
+  if (invoice.notes) {
+    doc.setDrawColor(200);
+    doc.setLineWidth(0.3);
+    doc.line(margin, y, pgW - margin, y);
+    y += 5;
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.setTextColor(80);
+    doc.text(t('ملاحظات:', 'Notes:'), isRtl ? pgW - margin : margin, y, { align: isRtl ? 'right' : 'left' });
+    doc.setFont(undefined, 'normal');
+    doc.text(invoice.notes, isRtl ? pgW - margin : margin, y + 5, { align: isRtl ? 'right' : 'left' });
+  }
+
+  const footerY = 285;
+  doc.setDrawColor(59, 130, 246);
+  doc.setLineWidth(0.5);
+  doc.line(margin, footerY, pgW - margin, footerY);
+  doc.setFontSize(7);
+  doc.setTextColor(150);
+  doc.text(t('شكراً لتعاملكم معنا', 'Thank you for your business'), pgW / 2, footerY + 5, { align: 'center' });
+  doc.text(`${coName} | ${coPhone ? coPhone + ' | ' : ''}${coAddr}`, pgW / 2, footerY + 10, { align: 'center' });
 
   doc.save(`invoice-${invoice.invoice_number || 'export'}.pdf`);
 }

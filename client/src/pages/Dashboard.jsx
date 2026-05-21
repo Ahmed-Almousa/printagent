@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [company, setCompany] = useState(null);
   const [now, setNow] = useState(new Date());
   const [uploading, setUploading] = useState(false);
+  const [logoPreview, setLogoPreview] = useState(null);
   const logoInputRef = useRef(null);
   const t = (ar, en) => lang === 'ar' ? ar : en;
   const monthNames = lang === 'ar' ? MONTHS_AR : MONTHS;
@@ -49,33 +50,35 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
-  const handleLogoUpload = async (e) => {
+  const handleLogoSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setLogoPreview(URL.createObjectURL(file));
+    handleLogoUpload(file);
+  };
+
+  const handleLogoUpload = async (file) => {
     setUploading(true);
     try {
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('logo', file);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
       const res = await fetch(`/api/settings/${activeCompany}/company/logo`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-        signal: controller.signal
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 })
       });
-      clearTimeout(timeout);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('فشل الرفع', 'Upload failed'));
       setCompany(prev => ({ ...prev, logo_url: data.logo_url }));
+      setLogoPreview(null);
       toast.success(t('تم رفع الشعار', 'Logo uploaded'));
     } catch (err) {
-      if (err.name === 'AbortError') {
-        toast.error(t('انتهت المهلة', 'Request timed out'));
-      } else {
-        toast.error(err.message || t('فشل الرفع', 'Upload failed'));
-      }
+      toast.error(err.message || t('فشل الرفع', 'Upload failed'));
     } finally {
       setUploading(false);
     }
@@ -132,13 +135,15 @@ export default function Dashboard() {
         <div className={`card px-5 py-3 flex items-center gap-4 ${isPrinting ? 'border-blue-200' : 'border-green-200'}`}>
           <div className="relative group">
             <div className={`w-14 h-14 rounded-full flex items-center justify-center overflow-hidden border-2 ${isPrinting ? 'border-blue-300' : 'border-green-300'}`}>
-              {company?.logo_url ? (
+              {logoPreview ? (
+                <img src={logoPreview} alt="logo" className="w-full h-full object-cover" />
+              ) : company?.logo_url ? (
                 <img src={company.logo_url} alt="logo" className="w-full h-full object-cover" />
               ) : (
                 <Building2 size="28" className={isPrinting ? 'text-blue-500' : 'text-green-500'} />
               )}
             </div>
-            <input type="file" ref={logoInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+            <input type="file" ref={logoInputRef} onChange={handleLogoSelect} accept="image/*" className="hidden" />
             <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1 cursor-pointer"
               onClick={() => logoInputRef.current?.click()}>
               {uploading ? (

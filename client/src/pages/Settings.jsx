@@ -90,33 +90,37 @@ function CompanySettings({ activeCompany, lang }) {
     }
   };
 
-  const handleLogoUpload = async (e) => {
+  const [logoPreview, setLogoPreview] = useState(null);
+
+  const handleLogoSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setLogoPreview(URL.createObjectURL(file));
+    handleLogoUpload(file);
+  };
+
+  const handleLogoUpload = async (file) => {
     setUploading(true);
     try {
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
       const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('logo', file);
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
       const res = await fetch(`/api/settings/${activeCompany}/company/logo`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-        signal: controller.signal
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 })
       });
-      clearTimeout(timeout);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || t('فشل الرفع', 'Upload failed'));
       setLogoUrl(data.logo_url);
+      setLogoPreview(null);
       toast.success(t('تم رفع الشعار', 'Logo uploaded'));
     } catch (err) {
-      if (err.name === 'AbortError') {
-        toast.error(t('انتهت المهلة', 'Request timed out'));
-      } else {
-        toast.error(err.message || t('فشل الرفع', 'Upload failed'));
-      }
+      toast.error(err.message || t('فشل الرفع', 'Upload failed'));
     } finally {
       setUploading(false);
     }
@@ -131,6 +135,7 @@ function CompanySettings({ activeCompany, lang }) {
       });
       if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
       setLogoUrl(null);
+      setLogoPreview(null);
       toast.success(t('تم حذف الشعار', 'Logo removed'));
     } catch (err) {
       toast.error(err.message || t('فشل الحذف', 'Delete failed'));
@@ -149,13 +154,15 @@ function CompanySettings({ activeCompany, lang }) {
       <div className="mb-6 p-4 bg-gray-50 rounded-lg flex items-center gap-4">
         <div className="relative group">
           <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden border-2 border-gray-300 bg-white">
-            {logoUrl ? (
+            {logoPreview ? (
+              <img src={logoPreview} alt="logo" className="w-full h-full object-cover" />
+            ) : logoUrl ? (
               <img src={logoUrl} alt="logo" className="w-full h-full object-cover" />
             ) : (
               <Building2 size="32" className="text-gray-400" />
             )}
           </div>
-          <input type="file" ref={logoInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+          <input type="file" ref={logoInputRef} onChange={handleLogoSelect} accept="image/*" className="hidden" />
           <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
             onClick={() => logoInputRef.current?.click()}>
             {uploading ? (
