@@ -464,7 +464,6 @@ function InvoiceFormModal({ show, onClose, onSaved, companySlug, lang, t, invoic
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const slug = isCombined ? 'printing' : companySlug;
     const body = {
       type: form.type,
       vendor_client_name: form.vendor_client_name,
@@ -491,10 +490,12 @@ function InvoiceFormModal({ show, onClose, onSaved, companySlug, lang, t, invoic
         toast.success(t('تمت الإضافة', 'Added'));
       }
       onSaved();
-    } catch {
-      toast.error(t('فشل في الحفظ', 'Failed to save'));
+    } catch (err) {
+      console.error('save invoice error:', err);
+      toast.error(err.response?.data?.error || t('فشل في الحفظ', 'Failed to save'));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   if (!show) return null;
