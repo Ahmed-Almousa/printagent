@@ -283,7 +283,9 @@ function InvoiceListTab({ type, companySlug, isCombined, lang, t }) {
       <button onClick={() => setDetailInvoice(inv)} className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600" title={t('عرض', 'View')}><FileText size="14" /></button>
       <button onClick={() => { setEditInvoice(inv); setShowForm(true); }} className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600" title={t('تعديل', 'Edit')}><Edit3 size="14" /></button>
       <button onClick={() => handleDelete(inv.id, inv._company)} className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600" title={t('حذف', 'Delete')}><Trash2 size="14" /></button>
-      <button onClick={() => generatePDF(inv, inv.items || [], lang, t, inv._company || companySlug)} className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" title={t('طباعة', 'Print')}><Printer size="14" /></button>
+      {(inv.type === 'sale') && (
+        <button onClick={() => generatePDF(inv, inv.items || [], lang, t, inv._company || companySlug)} className="p-1 rounded hover:bg-purple-50 text-gray-400 hover:text-purple-600" title={t('طباعة', 'Print')}><Printer size="14" /></button>
+      )}
     </div>
   );
 
@@ -709,9 +711,11 @@ function InvoiceDetailModal({ invoice, onClose, lang, t, companySlug }) {
         )}
 
         <div className="flex gap-2 mt-4">
-          <button onClick={() => generatePDF(invoice, items, lang, t, companySlug)} className="btn-primary flex-1">
-            <Printer size="16" className="inline me-1" /> {t('طباعة PDF', 'Print PDF')}
-          </button>
+          {invoice.type === 'sale' && (
+            <button onClick={() => generatePDF(invoice, items, lang, t, companySlug)} className="btn-primary flex-1">
+              <Printer size="16" className="inline me-1" /> {t('طباعة PDF', 'Print PDF')}
+            </button>
+          )}
           <button onClick={onClose} className="btn-secondary">{t('إغلاق', 'Close')}</button>
         </div>
       </div>
