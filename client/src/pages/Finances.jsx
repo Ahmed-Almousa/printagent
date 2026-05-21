@@ -1357,180 +1357,164 @@ function ReportsTab({ companySlug, lang, t, isCombined }) {
 }
 
 async function generatePDF(invoice, items, lang, t, companySlug) {
-  const doc = new jsPDF('p', 'mm', 'a4');
-  const isRtl = lang === 'ar';
-  const pgW = 210;
-  const margin = 14;
-  const contentW = pgW - margin * 2;
-
-  let company = { name: '', address: '', phone: '', logo_url: '' };
   try {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const isRtl = lang === 'ar';
+    const pgW = 210;
+    const m = 14;
+    const rightX = pgW - m;
+    const leftX = m;
+
+    let company = { name: '', address: '', phone: '', logo_url: '' };
     const token = localStorage.getItem('token');
     if (companySlug) {
-      const res = await fetch(`/api/settings/${companySlug}/company`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) company = await res.json();
+      try {
+        const res = await fetch(`/api/settings/${companySlug}/company`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) company = await res.json();
+      } catch (e) { console.error('company fetch fail', e); }
     }
-  } catch (e) {}
 
-  const isPrinting = companySlug === 'printing';
-  const coName = company.name || (isPrinting ? 'المطبعة' : 'الوكالة الإعلانية');
-  const coAddr = company.address || '';
-  const coPhone = company.phone || '';
-  const services = isPrinting
-    ? 'طباعة تجارية - دعاية وإعلان - تصميم جرافيك - تغليف وتشطيب'
-    : 'إعلانات - تسويق رقمي - تصميم - تنظيم فعاليات';
+    const isPrinting = companySlug !== 'advertising';
+    const coName = company.name || (isPrinting ? 'المطبعة' : 'الوكالة الإعلانية');
+    const coAddr = company.address || '';
+    const coPhone = company.phone || '';
+    const services = isPrinting
+      ? 'طباعة تجارية - دعاية وإعلان - تصميم جرافيك - تغليف وتشطيب'
+      : 'إعلانات - تسويق رقمي - تصميم - تنظيم فعاليات';
 
-  let y = margin;
+    let y = m + 3;
 
-  if (company.logo_url) {
-    try {
-      const imgRes = await fetch(company.logo_url, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
-      const blob = await imgRes.blob();
-      const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
-      doc.addImage(b64, 'PNG', isRtl ? pgW - margin - 22 : margin, y, 22, 22);
-    } catch (e) {}
-  }
+    if (company.logo_url) {
+      try {
+        const imgRes = await fetch(company.logo_url);
+        const blob = await imgRes.blob();
+        const b64 = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+        const fmt = b64.includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(b64, fmt, isRtl ? rightX - 22 : leftX, m, 22, 22);
+      } catch (e) { console.error('logo fetch fail', e); }
+    }
 
-  doc.setFontSize(20);
-  doc.setFont(undefined, 'bold');
-  doc.text(coName, isRtl ? pgW - margin - (company.logo_url ? 30 : 0) : margin + (company.logo_url ? 30 : 0), y + 8, { align: isRtl ? 'right' : 'left' });
+    const nameX = isRtl ? rightX - (company.logo_url ? 28 : 0) : leftX + (company.logo_url ? 28 : 0);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.text(coName, nameX, y, { align: isRtl ? 'right' : 'left' });
 
-  doc.setFont(undefined, 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100);
-  if (services) doc.text(services, isRtl ? pgW - margin : margin, y + 15, { align: isRtl ? 'right' : 'left' });
-  if (coAddr) doc.text(coAddr, isRtl ? pgW - margin : margin, y + 21, { align: isRtl ? 'right' : 'left' });
-  if (coPhone) doc.text(t('هاتف:', 'Tel:') + ' ' + coPhone, isRtl ? pgW - margin : margin, y + 27, { align: isRtl ? 'right' : 'left' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    if (services) doc.text(services, isRtl ? rightX : leftX, y + 6, { align: isRtl ? 'right' : 'left' });
+    if (coAddr) doc.text(coAddr, isRtl ? rightX : leftX, y + 11, { align: isRtl ? 'right' : 'left' });
+    if (coPhone) doc.text('Tel: ' + coPhone, isRtl ? rightX : leftX, y + 16, { align: isRtl ? 'right' : 'left' });
 
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.8);
-  doc.line(margin, y + 32, pgW - margin, y + 32);
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.6);
+    doc.line(leftX, y + 21, rightX, y + 21);
+    y += 26;
 
-  y = y + 38;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
+    doc.setTextColor(30);
+    doc.text('INVOICE', isRtl ? rightX : leftX, y, { align: isRtl ? 'right' : 'left' });
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(80);
 
-  doc.setFontSize(16);
-  doc.setFont(undefined, 'bold');
-  doc.setTextColor(30);
-  doc.text(t('فاتورة', 'INVOICE'), isRtl ? pgW - margin : margin, y, { align: isRtl ? 'right' : 'left' });
+    const invX = isRtl ? leftX : rightX - 50;
+    [['Invoice #:', invoice.invoice_number || '-'], ['Date:', invoice.invoice_date || '-']].forEach(([l, v], i) => {
+      doc.setFont('helvetica', 'bold');
+      doc.text(l, isRtl ? invX : rightX, y + i * 5, { align: isRtl ? 'left' : 'right' });
+      doc.setFont('helvetica', 'normal');
+      doc.text(v, isRtl ? invX + 25 : rightX - 30, y + i * 5, { align: isRtl ? 'left' : 'right' });
+    });
 
-  y += 8;
-  doc.setFontSize(9);
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(80);
+    const custX = isRtl ? rightX : leftX;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Customer:', custX, y, { align: isRtl ? 'right' : 'left' });
+    doc.setFont('helvetica', 'normal');
+    doc.text(invoice.vendor_client_name || '-', isRtl ? custX - 45 : custX + 30, y, { align: isRtl ? 'right' : 'left' });
+    if (invoice.customer_phone) doc.text('Phone: ' + invoice.customer_phone, isRtl ? custX : leftX, y + 5, { align: isRtl ? 'right' : 'left' });
+    if (invoice.customer_address) doc.text('Address: ' + invoice.customer_address, isRtl ? custX : leftX, y + 10, { align: isRtl ? 'right' : 'left' });
 
-  const invInfo = [
-    [t('رقم الفاتورة:', 'Invoice #:'), invoice.invoice_number || '-'],
-    [t('التاريخ:', 'Date:'), invoice.invoice_date || '-'],
-  ];
+    y += (invoice.customer_address ? 15 : invoice.customer_phone ? 10 : 7);
 
-  const invX = isRtl ? margin : pgW / 2 + 5;
-  invInfo.forEach(([label, val], i) => {
-    doc.setFont(undefined, 'bold');
-    doc.text(label, isRtl ? pgW - margin : invX, y + i * 5, { align: isRtl ? 'right' : 'left' });
-    doc.setFont(undefined, 'normal');
-    doc.text(val, isRtl ? pgW - margin - 40 : invX + 40, y + i * 5, { align: isRtl ? 'right' : 'left' });
-  });
-
-  const custX = isRtl ? pgW / 2 + 5 : margin;
-  doc.setFont(undefined, 'bold');
-  doc.text(t('معلومات العميل:', 'Customer:'), isRtl ? pgW - margin : custX, y, { align: isRtl ? 'right' : 'left' });
-  doc.setFont(undefined, 'normal');
-  doc.text(invoice.vendor_client_name || '-', isRtl ? pgW - margin - 50 : custX + 50, y, { align: isRtl ? 'right' : 'left' });
-  if (invoice.customer_phone) doc.text(t('هاتف:', 'Phone:') + ' ' + invoice.customer_phone, isRtl ? pgW - margin : custX, y + 5, { align: isRtl ? 'right' : 'left' });
-  if (invoice.customer_address) doc.text(t('عنوان:', 'Address:') + ' ' + invoice.customer_address, isRtl ? pgW - margin : custX, y + 10, { align: isRtl ? 'right' : 'left' });
-
-  y += Math.max(invInfo.length * 5 + 5, (invoice.customer_address ? 15 : 8));
-
-  doc.setDrawColor(200);
-  doc.setLineWidth(0.3);
-  doc.line(margin, y, pgW - margin, y);
-  y += 6;
-
-  const tableColumns = [
-    { header: t('#', '#'), dataKey: 'idx' },
-    { header: t('البيان', 'Description'), dataKey: 'name' },
-    { header: t('الكمية', 'Qty'), dataKey: 'qty' },
-    { header: t('سعر الوحدة', 'Unit Price'), dataKey: 'price' },
-    { header: t('الإجمالي', 'Total'), dataKey: 'total' },
-  ];
-
-  const tableData = (items || []).map((item, idx) => ({
-    idx: String(idx + 1),
-    name: item.item_name || item.name || '-',
-    qty: Number(item.quantity).toLocaleString(),
-    price: Number(item.unit_price || item.rate || 0).toLocaleString(),
-    total: Number(item.total || (Number(item.quantity) * Number(item.unit_price))).toLocaleString(),
-  }));
-
-  doc.autoTable({
-    columns: tableColumns,
-    body: tableData,
-    startY: y,
-    theme: 'grid',
-    styles: { fontSize: 9, cellPadding: 4, halign: isRtl ? 'right' : 'left', lineColor: [200, 200, 200] },
-    headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
-    columnStyles: {
-      idx: { cellWidth: 10, halign: 'center' },
-      qty: { halign: 'center' },
-      price: { halign: isRtl ? 'left' : 'right' },
-      total: { halign: isRtl ? 'left' : 'right', fontStyle: 'bold' },
-    },
-  });
-
-  y = doc.lastAutoTable.finalY + 8;
-
-  const subtotal = items.reduce((s, i) => s + Number(i.total || 0), 0);
-  const taxPct = Number(invoice.tax || 0);
-  const taxAmount = taxPct > 0 ? (subtotal * taxPct / 100) : Number(invoice.tax_amount || 0);
-  const discount = Number(invoice.discount || 0);
-  const grandTotal = Number(invoice.grand_total || (subtotal + taxAmount - discount));
-
-  const totalX = isRtl ? margin : pgW / 2;
-  const totalX2 = isRtl ? pgW / 2 : margin;
-  const col1W = 40;
-  const col2W = 50;
-
-  const totalLines = [
-    { label: t('المجموع:', 'Subtotal:'), val: subtotal.toLocaleString() + ' ' + (company.currency || 'SAR') },
-    { label: t('الضريبة:', 'Tax:'), val: taxPct > 0 ? `${taxPct}% = ${taxAmount.toLocaleString()}` : taxAmount.toLocaleString() },
-    { label: t('الخصم:', 'Discount:'), val: '- ' + discount.toLocaleString() },
-    { label: t('الإجمالي النهائي:', 'Grand Total:'), val: grandTotal.toLocaleString() + ' ' + (company.currency || 'SAR'), bold: true, color: [59, 130, 246] },
-  ];
-
-  totalLines.forEach((ln, i) => {
-    const ly = y + i * 7;
-    doc.setFont(undefined, ln.bold ? 'bold' : 'normal');
-    doc.setTextColor(...(ln.color || [60, 60, 60]));
-    doc.setFontSize(ln.bold ? 12 : 10);
-    doc.text(ln.label, isRtl ? pgW - margin - col1W : totalX, ly, { align: isRtl ? 'right' : 'left' });
-    doc.text(ln.val, isRtl ? pgW - margin : totalX + col1W, ly, { align: isRtl ? 'left' : 'right' });
-  });
-
-  y += totalLines.length * 7 + 10;
-
-  if (invoice.notes) {
     doc.setDrawColor(200);
     doc.setLineWidth(0.3);
-    doc.line(margin, y, pgW - margin, y);
+    doc.line(leftX, y, rightX, y);
     y += 5;
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'bold');
-    doc.setTextColor(80);
-    doc.text(t('ملاحظات:', 'Notes:'), isRtl ? pgW - margin : margin, y, { align: isRtl ? 'right' : 'left' });
-    doc.setFont(undefined, 'normal');
-    doc.text(invoice.notes, isRtl ? pgW - margin : margin, y + 5, { align: isRtl ? 'right' : 'left' });
-  }
 
-  const footerY = 285;
-  doc.setDrawColor(59, 130, 246);
-  doc.setLineWidth(0.5);
-  doc.line(margin, footerY, pgW - margin, footerY);
-  doc.setFontSize(7);
-  doc.setTextColor(150);
-  doc.text(t('شكراً لتعاملكم معنا', 'Thank you for your business'), pgW / 2, footerY + 5, { align: 'center' });
-  doc.text(`${coName} | ${coPhone ? coPhone + ' | ' : ''}${coAddr}`, pgW / 2, footerY + 10, { align: 'center' });
+    const cols = [
+      { header: '#', dataKey: 'idx' },
+      { header: 'Description', dataKey: 'name' },
+      { header: 'Qty', dataKey: 'qty' },
+      { header: 'Unit Price', dataKey: 'price' },
+      { header: 'Total', dataKey: 'total' },
+    ];
+    const body = (items || []).map((it, i) => ({
+      idx: String(i + 1),
+      name: it.item_name || it.name || '-',
+      qty: String(Number(it.quantity)),
+      price: String(Number(it.unit_price || it.rate || 0)),
+      total: String(Number(it.total || (Number(it.quantity) * Number(it.unit_price)))),
+    }));
 
-  doc.save(`invoice-${invoice.invoice_number || 'export'}.pdf`);
+    doc.autoTable({
+      columns: cols, body, startY: y,
+      theme: 'grid',
+      styles: { fontSize: 9, cellPadding: 4, halign: isRtl ? 'right' : 'left', lineColor: [200, 200, 200] },
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontStyle: 'bold' },
+      columnStyles: { idx: { cellWidth: 10, halign: 'center' }, qty: { halign: 'center' }, price: { halign: isRtl ? 'left' : 'right' }, total: { halign: isRtl ? 'left' : 'right', fontStyle: 'bold' } },
+    });
+
+    y = doc.lastAutoTable.finalY + 8;
+    const subtotal = items.reduce((s, i) => s + Number(i.total || 0), 0);
+    const taxPct = Number(invoice.tax || 0);
+    const taxAmt = taxPct > 0 ? (subtotal * taxPct / 100) : Number(invoice.tax_amount || 0);
+    const disc = Number(invoice.discount || 0);
+    const total = Number(invoice.grand_total || (subtotal + taxAmt - disc));
+
+    const totals = [
+      ['Subtotal:', subtotal.toLocaleString()],
+      ['Tax:', taxPct > 0 ? taxPct + '% = ' + taxAmt.toLocaleString() : taxAmt.toLocaleString()],
+      ['Discount:', '- ' + disc.toLocaleString()],
+      ['Grand Total:', total.toLocaleString()],
+    ];
+    const tX = isRtl ? leftX : rightX - 100;
+    totals.forEach(([l, v], i) => {
+      const ly = y + i * 7;
+      doc.setFont('helvetica', i === 3 ? 'bold' : 'normal');
+      doc.setTextColor(i === 3 ? [59, 130, 246] : [60, 60, 60]);
+      doc.setFontSize(i === 3 ? 12 : 10);
+      doc.text(l, isRtl ? tX : rightX - 50, ly, { align: isRtl ? 'left' : 'right' });
+      doc.text(v, isRtl ? tX + 45 : rightX, ly, { align: isRtl ? 'left' : 'right' });
+    });
+
+    y += 35;
+    if (invoice.notes) {
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.3);
+      doc.line(leftX, y, rightX, y);
+      y += 5;
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(80);
+      doc.text('Notes:', isRtl ? rightX : leftX, y, { align: isRtl ? 'right' : 'left' });
+      doc.setFont('helvetica', 'normal');
+      doc.text(invoice.notes, isRtl ? rightX : leftX, y + 5, { align: isRtl ? 'right' : 'left' });
+    }
+
+    const fY = 280;
+    doc.setDrawColor(59, 130, 246);
+    doc.setLineWidth(0.5);
+    doc.line(leftX, fY, rightX, fY);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(150);
+    doc.text('Thank you for your business', pgW / 2, fY + 5, { align: 'center' });
+    doc.text(coName + (coPhone ? ' | ' + coPhone : '') + (coAddr ? ' | ' + coAddr : ''), pgW / 2, fY + 10, { align: 'center' });
+
+    doc.save('invoice-' + (invoice.invoice_number || 'export') + '.pdf');
+  } catch (e) { console.error('PDF error:', e); alert('PDF generation failed: ' + e.message); }
 }
