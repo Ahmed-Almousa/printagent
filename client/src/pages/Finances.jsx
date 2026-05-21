@@ -215,8 +215,8 @@ export default function Finances() {
         ))}
       </div>
 
-      {tab === 'sale_invoices' && <InvoiceListTab type="sale" companySlug={companyTab === 'combined' ? null : companyTab} isCombined={companyTab === 'combined'} lang={lang} t={t} />}
-      {tab === 'purchase_invoices' && <InvoiceListTab type="purchase" companySlug={companyTab === 'combined' ? null : companyTab} isCombined={companyTab === 'combined'} lang={lang} t={t} />}
+      {tab === 'sale_invoices' && <InvoiceListTab type="sale" companySlug={companyTab === 'combined' ? activeCompany : companyTab} isCombined={companyTab === 'combined'} lang={lang} t={t} />}
+      {tab === 'purchase_invoices' && <InvoiceListTab type="purchase" companySlug={companyTab === 'combined' ? activeCompany : companyTab} isCombined={companyTab === 'combined'} lang={lang} t={t} />}
       {tab === 'items' && <ItemsTab companySlug={companyTab === 'combined' ? null : companyTab} isCombined={companyTab === 'combined'} lang={lang} t={t} />}
       {tab === 'inventory' && <InventoryTab companySlug={companyTab === 'combined' ? null : companyTab} isCombined={companyTab === 'combined'} lang={lang} t={t} />}
       {tab === 'payroll' && <PayrollTab companySlug={companyTab === 'combined' ? null : companyTab} lang={lang} t={t} isCombined={companyTab === 'combined'} />}
